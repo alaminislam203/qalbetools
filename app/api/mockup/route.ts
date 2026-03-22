@@ -2,23 +2,22 @@ import { NextResponse } from 'next/server';
 import sharp from 'sharp';
 import path from 'path';
 
-// ১. CORS এর জন্য OPTIONS রিকোয়েস্ট হ্যান্ডলার যুক্ত করা হলো
-export async function OPTIONS(req: Request) {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*', // প্রোডাকশনে '*' এর বদলে 'https://qalbetalks.com' দিতে পারেন
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
-}
-
 // ডিভাইসের ডাটাবেস
 const devices: Record<string, { file: string; width: number; height: number; top: number; left: number; frameW: number; frameH: number }> = {
   iphone15: { file: 'iphone15-frame.png', width: 1290, height: 2796, top: 60, left: 65, frameW: 1420, frameH: 2916 },
   macbook: { file: 'macbook-frame.png', width: 2560, height: 1600, top: 120, left: 180, frameW: 2920, frameH: 2000 },
 };
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// ১. CORS এর জন্য OPTIONS রিকোয়েস্ট হ্যান্ডলার যুক্ত করা হলো
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
 
 export async function POST(req: Request) {
   try {
@@ -27,10 +26,7 @@ export async function POST(req: Request) {
     const deviceId = formData.get('deviceId') as string | null;
 
     if (!image || !deviceId || !devices[deviceId]) {
-      return NextResponse.json({ success: false, error: 'Invalid input data' }, { 
-          status: 400,
-          headers: { 'Access-Control-Allow-Origin': '*' } // এখানেও হেডার অ্যাড করে দিন
-      });
+      return NextResponse.json({ success: false, error: 'Invalid input data' }, { status: 400, headers: corsHeaders });
     }
 
     const arrayBuffer = await image.arrayBuffer();
@@ -61,17 +57,11 @@ export async function POST(req: Request) {
 
     const base64Image = `data:image/png;base64,${finalImageBuffer.toString('base64')}`;
 
-    // সফল রেসপন্সেও CORS হেডার দিতে হবে
-    return NextResponse.json({ success: true, image: base64Image }, {
-        status: 200,
-        headers: { 'Access-Control-Allow-Origin': '*' }
-    });
+    // সফল রেসপন্সেও CORS হেডার
+    return NextResponse.json({ success: true, image: base64Image }, { headers: corsHeaders });
 
   } catch (error) {
     console.error("Sharp Error:", error);
-    return NextResponse.json({ success: false, error: 'Image processing failed. Check Vercel Logs.' }, { 
-        status: 500,
-        headers: { 'Access-Control-Allow-Origin': '*' }
-    });
+    return NextResponse.json({ success: false, error: 'Image processing failed. Check Vercel Logs.' }, { status: 500, headers: corsHeaders });
   }
 }
