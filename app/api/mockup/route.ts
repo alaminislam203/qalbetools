@@ -40,6 +40,10 @@ export async function POST(req: Request) {
       .resize(device.width, device.height, { fit: 'cover' })
       .toBuffer();
 
+    const resizedFrameImage = await sharp(framePath)
+      .resize(device.frameW, device.frameH, { fit: 'fill' })
+      .toBuffer();
+
     const finalImageBuffer = await sharp({
       create: {
         width: device.frameW,
@@ -50,7 +54,7 @@ export async function POST(req: Request) {
     })
     .composite([
       { input: resizedUserImage, top: device.top, left: device.left },
-      { input: framePath, top: 0, left: 0 }
+      { input: resizedFrameImage, top: 0, left: 0 }
     ])
     .png()
     .toBuffer();
