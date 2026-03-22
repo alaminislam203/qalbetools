@@ -3,9 +3,9 @@ import sharp from 'sharp';
 import path from 'path';
 
 // ডিভাইসের ডাটাবেস
-const devices: Record<string, { file: string; width: number; height: number; top: number; left: number; frameW: number; frameH: number }> = {
-  iphone15: { file: 'iphone15-frame.png', width: 1290, height: 2796, top: 60, left: 65, frameW: 1420, frameH: 2916 },
-  macbook: { file: 'macbook-frame.png', width: 2560, height: 1600, top: 120, left: 180, frameW: 2920, frameH: 2000 },
+const devices: Record<string, { file: string; width: number; height: number; top: number; left: number; frameW: number; frameH: number; radius: number }> = {
+  iphone15: { file: 'iphone15-frame.png', width: 1290, height: 2796, top: 60, left: 65, frameW: 1420, frameH: 2916, radius: 140 },
+  macbook: { file: 'macbook-frame.png', width: 2560, height: 1600, top: 120, left: 180, frameW: 2920, frameH: 2000, radius: 16 },
 };
 
 const corsHeaders = {
@@ -36,8 +36,14 @@ export async function POST(req: Request) {
     // Vercel-এ public ফোল্ডার রিড করার জন্য process.cwd() ব্যবহার
     const framePath = path.join(process.cwd(), 'public', 'frames', device.file);
 
+    // রাউন্ডেড কর্নারের জন্য একটি SVG মাস্ক তৈরি করা
+    const roundedCorners = Buffer.from(
+      `<svg><rect x="0" y="0" width="${device.width}" height="${device.height}" rx="${device.radius}" ry="${device.radius}" fill="white"/></svg>`
+    );
+
     const resizedUserImage = await sharp(buffer)
       .resize(device.width, device.height, { fit: 'cover' })
+      .composite([{ input: roundedCorners, blend: 'dest-in' }])
       .toBuffer();
 
     const resizedFrameImage = await sharp(framePath)
