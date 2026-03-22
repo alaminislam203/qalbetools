@@ -4,7 +4,7 @@ import path from 'path';
 
 // ডিভাইসের ডাটাবেস
 const devices: Record<string, { file: string; width: number; height: number; top: number; left: number; frameW: number; frameH: number; radius: number }> = {
-  iphone15: { file: 'iphone15-frame.png', width: 1290, height: 2796, top: 60, left: 65, frameW: 1420, frameH: 2916, radius: 140 },
+  iphone15: { file: 'iphone15-frame.png', width: 1179, height: 2412, top: 264, left: 120, frameW: 1419, frameH: 2796, radius: 120 },
   macbook: { file: 'macbook-frame.png', width: 2560, height: 1600, top: 120, left: 180, frameW: 2920, frameH: 2000, radius: 16 },
 };
 
