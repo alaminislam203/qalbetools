@@ -46,10 +46,13 @@ export async function POST(req: Request) {
       const cy = Math.floor(info.height / 2);
       const getAlpha = (x: number, y: number) => data[(y * info.width + x) * 4 + 3];
 
-      let top = cy; while(top > 0 && getAlpha(cx, top) < 250) top--;
-      let bottom = cy; while(bottom < info.height - 1 && getAlpha(cx, bottom) < 250) bottom++;
       let left = cx; while(left > 0 && getAlpha(left, cy) < 250) left--;
       let right = cx; while(right < info.width - 1 && getAlpha(right, cy) < 250) right++;
+      
+      const safeX = left + Math.floor((right - left) / 4); // নচ বা আইল্যান্ড এড়াতে স্ক্রিনের ২৫% পজিশন স্ক্যান করা হবে
+
+      let top = cy; while(top > 0 && getAlpha(safeX, top) < 250) top--;
+      let bottom = cy; while(bottom < info.height - 1 && getAlpha(safeX, bottom) < 250) bottom++;
 
       boundingBoxCache[deviceId] = {
           top: top + 1,
