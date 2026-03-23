@@ -155,6 +155,56 @@ window.location.href = downloadUrl;`}
               </pre>
             </div>
           </div>
+
+          {/* Instagram Downloader API */}
+          <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl mt-12">
+            <h3 className="text-2xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-400 dark:to-pink-400">3. Instagram Media Downloader API</h3>
+            
+            {/* Fetch Endpoint */}
+            <div className="mb-12">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                <code className="text-lg md:text-xl font-mono text-slate-800 dark:text-slate-200 break-all bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                  /api/ig-downloader
+                </code>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
+                Extract high-resolution videos and images from any public Instagram URL (Posts, Reels).
+              </p>
+              
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl mb-8">
+                <div className="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></div>
+                  </div>
+                  <span className="text-xs font-mono text-slate-400">Request Body (JSON)</span>
+                </div>
+                <pre className="p-6 text-sm text-slate-300 font-mono overflow-x-auto leading-relaxed">
+{`{
+  "url": "https://www.instagram.com/reels/C4ub4_8L6z7/"
+}`}
+                </pre>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
+              <div className="bg-slate-800 px-4 py-3 border-b border-slate-700 flex gap-2 items-center">
+                <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></div>
+                <span className="ml-4 text-xs font-mono text-slate-400">Usage Recommendation</span>
+              </div>
+              <div className="p-6 text-sm text-slate-300 leading-relaxed">
+                <p className="mb-4 text-slate-400 italic">For the best user experience and to avoid browser restrictions, always use our secure proxy for direct media downloads:</p>
+                <code className="block bg-black p-4 rounded-xl border border-slate-800 text-purple-400 font-mono mb-4 break-all">
+                  /api/fb-downloader/proxy?url=IG_CDN_URL&filename=ig-media.mp4
+                </code>
+                <p className="text-slate-500">Note: The proxy also works for Instagram CDN links seamlessly.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
