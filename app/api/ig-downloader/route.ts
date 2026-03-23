@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { ndown } from 'nayan-media-downloaders';
+// আগের ভুল লাইনটি মুছে এটি দিন (শেষে s আছে)
+import { instagram } from 'nayan-media-downloaders';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +13,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: CORS });
 }
 
-// ── ২. GET: Proxy Downloader (সরাসরি ডাউনলোড এবং CORS বাইপাস) ─────────────────
+// ── ২. GET: Proxy Downloader (সরাসরি ডাউনলোডের জন্য) ─────────────────────────
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const proxyUrl = searchParams.get('proxyUrl');
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
         'Referer': 'https://www.instagram.com/',
         'Accept': '*/*'
       },
-      signal: AbortSignal.timeout(60000), // 60 সেকেন্ড টাইমআউট
+      signal: AbortSignal.timeout(60000), 
     });
 
     if (!upstream.ok) throw new Error('CDN fetch failed');
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
   }
 }
 
-// ── ৩. POST: Media Fetcher (ভিডিও/ছবির লিংক বের করা) ──────────────────────────
+// ── ৩. POST: Media Fetcher (আপনার দেওয়া লজিক) ─────────────────────────────────
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -61,20 +62,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Valid Instagram URL required' }, { status: 400, headers: CORS });
     }
 
-    // Nayan Media Downloader দিয়ে ভিডিও ফেচ (এটি Vercel IP-তে ব্লক খায় না)
-    const result = await ndown(url);
+    // আপনার দেওয়া ডকুমেন্টেশন অনুযায়ী instagram() কল করা হলো
+    const result = await instagram(url);
 
-    if (!result.status || !result.data || result.data.length === 0) {
+    // Vercel লগে ডাটা চেক করার জন্য (ডিবাগিং)
+    console.log("IG Package Result:", result);
+
+    if (!result || !result.data || result.data.length === 0) {
        throw new Error('No media found or post is private');
     }
 
-    // ফ্রন্টএন্ডের জন্য ডাটা ফরম্যাটিং
-    const formats = result.data.map((item: any, i: number) => {
-        const isVideo = item.url.includes('.mp4');
+    // ডাটাগুলোকে ফ্রন্টএন্ডের জন্য সুন্দরভাবে সাজানো
+    const formats = result.data.map((item: any) => {
+        // প্যাকেজটি সাধারণত url বা video প্রোপার্টিতে লিংক দেয়
+        const mediaUrl = item.url || item.video || item.image; 
+        const isVideo = mediaUrl.includes('.mp4') || item.type === 'video';
+        
         return {
             quality: isVideo ? 'HD Video MP4' : 'High Res Image JPG',
             ext: isVideo ? 'mp4' : 'jpg',
-            url: item.url
+            url: mediaUrl
         };
     });
 
