@@ -55,6 +55,12 @@ interface MediaResult {
 // METHOD 1: SnapSave API (Most Reliable)
 // ══════════════════════════════════════════════════════════════════════════════
 async function trySnapSave(url: string): Promise<MediaResult> {
+<<<<<<< HEAD
+=======
+  const encoded = Buffer.from(url).toString('base64');
+  const apiUrl = `https://snapsave.app/action.php?lang=en&button=1&url=${encodeURIComponent(url)}`;
+
+>>>>>>> efa385f
   const formData = new URLSearchParams();
   formData.append('url', url);
 
@@ -452,4 +458,8 @@ export async function POST(req: Request) {
       { status: 500, headers: CORS }
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> efa385f
