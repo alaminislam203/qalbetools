@@ -115,7 +115,7 @@ async function tryEmbedPage(url: string): Promise<MediaResult> {
 
   // ── Carousel/Sidecar ────────────────────────────────────────────────────────
   // carousel এর ক্ষেত্রে একাধিক আইটেম থাকতে পারে
-  const sidecarRaw = html.match(/"edge_sidecar_to_children".*?"edges"\s*:\s*(\[.*?\])\s*\}/s);
+  const sidecarRaw = html.match(/"edge_sidecar_to_children"[\s\S]*?"edges"\s*:\s*(\[[\s\S]*?\])\s*\}/);
   if (sidecarRaw) {
     try {
       const edges = JSON.parse(sidecarRaw[1]);
