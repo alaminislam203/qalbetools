@@ -30,10 +30,10 @@ export default function Home() {
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] dark:opacity-[0.05]"></div>
         <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3">
-            <div className="w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl"></div>
+          <div className="w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl"></div>
         </div>
         <div className="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/3">
-            <div className="w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+          <div className="w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative text-center">
@@ -42,7 +42,7 @@ export default function Home() {
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-500 dark:from-indigo-400 dark:to-blue-400">Device Mockup API</span>
           </h1>
           <p className="max-w-2xl mx-auto text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 leading-relaxed tracking-wide">
-            Instantly generate stunning, pixel-perfect device mockups for your apps and websites. 
+            Instantly generate stunning, pixel-perfect device mockups for your apps and websites.
             No design skills needed. Just send an image, and get a professional mockup back.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -66,19 +66,19 @@ export default function Home() {
 
           {/* Tab Navigation */}
           <div className="flex flex-wrap justify-center gap-2 mb-12 p-2 bg-slate-100 dark:bg-white/5 rounded-3xl w-fit mx-auto border border-slate-200 dark:border-slate-800">
-            <button 
+            <button
               onClick={() => setActiveTab('mockup')}
               className={`px-6 py-3 rounded-2xl font-bold transition-all ${activeTab === 'mockup' ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-lg' : 'hover:bg-white/50 dark:hover:bg-white/10 text-slate-500'}`}
             >
               Mockup API
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('facebook')}
               className={`px-6 py-3 rounded-2xl font-bold transition-all ${activeTab === 'facebook' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-lg' : 'hover:bg-white/50 dark:hover:bg-white/10 text-slate-500'}`}
             >
               Facebook API
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('instagram')}
               className={`px-6 py-3 rounded-2xl font-bold transition-all ${activeTab === 'instagram' ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-lg' : 'hover:bg-white/50 dark:hover:bg-white/10 text-slate-500'}`}
             >
@@ -96,9 +96,9 @@ export default function Home() {
                   /api/mockup
                 </code>
               </div>
-              
+
               <p className="mb-10 text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
-                Send a <code className="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md text-sm">multipart/form-data</code> POST request containing your image and the target device ID. 
+                Send a <code className="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md text-sm">multipart/form-data</code> POST request containing your image and the target device ID.
               </p>
 
               <div className="mb-12">
@@ -121,7 +121,7 @@ export default function Home() {
           {activeTab === 'facebook' && (
             <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h3 className="text-2xl font-black mb-6 text-blue-600 dark:text-blue-400">2. Facebook Media Downloader API</h3>
-              
+
               {/* Fetch Endpoint */}
               <div className="mb-12">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
@@ -133,7 +133,7 @@ export default function Home() {
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
                   Fetch metadata, thumbnails, and direct video/image URLs from a public Facebook URL.
                 </p>
-                
+
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl mb-8">
                   <div className="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
                     <div className="flex gap-2">
@@ -144,7 +144,7 @@ export default function Home() {
                     <span className="text-xs font-mono text-slate-400">Request Body (JSON)</span>
                   </div>
                   <pre className="p-6 text-sm text-slate-300 font-mono overflow-x-auto leading-relaxed">
-{`{
+                    {`{
   "url": "https://www.facebook.com/reel/1305238694994449"
 }`}
                   </pre>
@@ -153,15 +153,15 @@ export default function Home() {
 
               {/* Proxy Endpoint */}
               <div className="mb-12">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">GET</span>
-                    <code className="text-lg md:text-xl font-mono text-slate-800 dark:text-slate-200 break-all bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-                      /api/fb-downloader/proxy?url=URL&filename=NAME
-                    </code>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
-                    Bypass CORS and force direct downloads with the <code className="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md text-sm">Content-Disposition</code> header.
-                  </p>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                  <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">GET</span>
+                  <code className="text-lg md:text-xl font-mono text-slate-800 dark:text-slate-200 break-all bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                    /api/fb-downloader/proxy?url=URL&filename=NAME
+                  </code>
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
+                  Bypass CORS and force direct downloads with the <code className="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md text-sm">Content-Disposition</code> header.
+                </p>
               </div>
 
               <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
@@ -172,7 +172,7 @@ export default function Home() {
                   <span className="ml-4 text-xs font-mono text-slate-400">usage-example.js</span>
                 </div>
                 <pre className="p-6 text-sm text-slate-300 font-mono overflow-x-auto leading-relaxed">
-{`// 1. Fetch formats
+                  {`// 1. Fetch formats
 const res = await fetch('/api/fb-downloader', {
   method: 'POST',
   body: JSON.stringify({ url: 'FB_URL' })
@@ -194,7 +194,7 @@ window.location.href = downloadUrl;`}
                 <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-400 dark:to-pink-400">3. Instagram Media Downloader API</h3>
                 <span className="bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-pink-200 dark:border-pink-800">Carousel Support</span>
               </div>
-              
+
               {/* Fetch Endpoint */}
               <div className="mb-12">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
@@ -206,7 +206,7 @@ window.location.href = downloadUrl;`}
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
                   Download **Reels, Videos, Photos, and Carousels** (Multi-media posts) using our high-reliability multi-method engine (SnapSave, SaveIG, GraphQL).
                 </p>
-                
+
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl mb-8">
                   <div className="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
                     <div className="flex gap-2">
@@ -217,7 +217,7 @@ window.location.href = downloadUrl;`}
                     <span className="text-xs font-mono text-slate-400">Request Body (JSON)</span>
                   </div>
                   <pre className="p-6 text-sm text-slate-300 font-mono overflow-x-auto leading-relaxed">
-{`{
+                    {`{
   "url": "https://www.instagram.com/reels/C4ub4_8L6z7/"
 }`}
                   </pre>
@@ -273,8 +273,8 @@ window.location.href = downloadUrl;`}
             <p className="max-w-xl mx-auto text-lg leading-relaxed text-slate-300">
               A powerful open-source suite of developer utilities brought to you by the creators of QalbeTalks. Discover tools that supercharge your workflow.
             </p>
-            <a 
-              href="https://qalbetalks.com" 
+            <a
+              href="https://qalbetalks.com"
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-full font-bold text-lg shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
               target="_blank" rel="noopener noreferrer"
               title="QalbeTalks - Technology, Coding, and Free Web Tools"
@@ -285,7 +285,7 @@ window.location.href = downloadUrl;`}
           <div className="mt-16 pt-8 border-t border-slate-800/50 text-sm font-medium">
             <p>
               &copy; {new Date().getFullYear()}{" "}
-              <a href="https://qalbetalks.com" className="text-white hover:text-indigo-400 transition-colors">QalbeTalks</a>. 
+              <a href="https://qalbetalks.com" className="text-white hover:text-indigo-400 transition-colors">QalbeTalks Devs</a>.
               All rights reserved. Built with Next.js and Tailwind CSS.
             </p>
           </div>
