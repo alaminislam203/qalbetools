@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// CORS Handle for WordPress Frontend
-export async function OPTIONS(req: Request) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
@@ -16,66 +15,76 @@ export async function POST(req: Request) {
   try {
     const { url } = await req.json();
 
-    if (!url || !url.includes('facebook.com')) {
-      return NextResponse.json({ success: false, error: 'Valid Facebook URL required' }, { 
-          status: 400, 
-          headers: { 'Access-Control-Allow-Origin': '*' } 
-      });
+    if (!url || !url.includes('facebook.com') && !url.includes('fb.watch')) {
+      return NextResponse.json({ success: false, error: 'Valid Facebook URL required' }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
-    // Cobalt API কল করা হলো (এটি Vercel-এর IP বাইপাস করে কাজ করবে)
-    const cobaltResponse = await fetch('https://api.cobalt.tools/api/json', {
-      method: 'POST',
+    // ১. প্রথমে রিডাইরেক্ট লিঙ্ক (যেমন /share/v/) সলভ করে আসল লিঙ্ক বের করা
+    let finalUrl = url;
+    try {
+        const redirectRes = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+        finalUrl = redirectRes.url;
+    } catch (e) {
+        console.log("Redirect check failed, using original URL.");
+    }
+
+    // ২. ফেসবুকের পেজ থেকে সরাসরি HTML ডাটা স্ক্র্যাপ করা (ব্রাউজারের ছদ্মবেশে)
+    const response = await fetch(finalUrl, {
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      },
-      body: JSON.stringify({
-        url: url,
-        vQuality: "720", // ডিফল্টভাবে HD কোয়ালিটি রিকোয়েস্ট করবে
-        filenamePattern: "classic"
-      })
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-Mode': 'navigate',
+      }
     });
 
-    const data = await cobaltResponse.json();
+    const html = await response.text();
 
-    // যদি Cobalt থেকে কোনো এরর আসে
-    if (data.status === 'error') {
-        throw new Error(data.text || 'Facebook block error');
+    // ৩. Regex দিয়ে HTML এর ভেতর থেকে ভিডিওর ডিরেক্ট লিঙ্ক বের করা
+    const hdMatch = html.match(/"hd_src":"([^"]+)"/);
+    const sdMatch = html.match(/"sd_src":"([^"]+)"/);
+    const titleMatch = html.match(/<title>(.*?)<\/title>/);
+
+    let title = 'Facebook Video';
+    if (titleMatch && titleMatch[1]) {
+        // টাইটেল থেকে অপ্রয়োজনীয় লেখা বাদ দেওয়া
+        title = titleMatch[1].replace(' | Facebook', '').replace('&quot;', '"');
     }
 
-    // ভিডিওর আসল ডাউনলোড লিঙ্ক বের করা
-    let downloadUrl = '';
-    if (data.url) {
-        downloadUrl = data.url;
-    } else if (data.picker && data.picker.length > 0) {
-        downloadUrl = data.picker[0].url; // মাল্টিপল সোর্স থাকলে প্রথমটি নেবে
+    const formats = [];
+
+    // ডিরেক্ট লিঙ্কগুলোকে ডিকোড করা (ফেসবুকের \/ কে / তে রূপান্তর করা)
+    if (hdMatch && hdMatch[1] !== 'null') {
+        formats.push({
+            quality: 'HD Quality',
+            url: hdMatch[1].split('\\/').join('/'),
+            filesize: 'Ready'
+        });
     }
 
-    // ওয়ার্ডপ্রেস ফ্রন্টএন্ডের জন্য ডাটা সাজানো
+    if (sdMatch && sdMatch[1] !== 'null') {
+        formats.push({
+            quality: 'SD Quality',
+            url: sdMatch[1].split('\\/').join('/'),
+            filesize: 'Ready'
+        });
+    }
+
+    if (formats.length === 0) {
+        throw new Error('No public video source found in the page HTML.');
+    }
+
     const mediaInfo = {
-      title: 'Facebook Video (HD)',
-      thumbnail: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?q=80&w=600&auto=format&fit=crop', // ডিফল্ট থাম্বনেইল
-      formats: [
-        {
-          quality: 'HD / Auto',
-          url: downloadUrl,
-          filesize: 'Ready',
-        }
-      ]
+      title: title,
+      thumbnail: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?q=80&w=600&auto=format&fit=crop', // ডিফল্ট কভার
+      formats: formats
     };
 
-    return NextResponse.json({ success: true, data: mediaInfo }, { 
-        status: 200, 
-        headers: { 'Access-Control-Allow-Origin': '*' } 
-    });
+    return NextResponse.json({ success: true, data: mediaInfo }, { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
 
   } catch (error: any) {
-    console.error('Bypass API Error:', error.message);
-    return NextResponse.json({ success: false, error: 'Facebook API blocked the request or the video is strictly private.' }, { 
-        status: 500, 
-        headers: { 'Access-Control-Allow-Origin': '*' } 
-    });
+    console.error('Regex Scraper Error:', error.message);
+    return NextResponse.json({ success: false, error: 'ভিডিওটি প্রাইভেট অথবা ফেসবুক লিঙ্কটি ব্লক করে রেখেছে।' }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 }
