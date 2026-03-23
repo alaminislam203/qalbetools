@@ -55,24 +55,22 @@ export default function Home() {
       <section id="api-docs" className="py-20 bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800 relative z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-black mb-4">Developer API Guide</h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg">Integrate our mockup generator directly into your workflow.</p>
+            <h2 className="text-3xl md:text-5xl font-black mb-4">Developer API Guide</h2>
+            <p className="text-slate-600 dark:text-slate-400 text-lg">Integrate our powerful utility APIs directly into your workflow.</p>
           </div>
 
-          <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+          {/* Device Mockup API */}
+          <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl mb-12">
+            <h3 className="text-2xl font-black mb-6 text-indigo-600 dark:text-indigo-400">1. Device Mockup API</h3>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
               <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
               <code className="text-lg md:text-xl font-mono text-slate-800 dark:text-slate-200 break-all bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 hidden sm:block">
-                https://qalbetools.vercel.app/api/mockup
-              </code>
-              <code className="text-md sm:hidden font-mono text-slate-800 dark:text-slate-200 break-all">
                 /api/mockup
               </code>
             </div>
             
             <p className="mb-10 text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
               Send a <code className="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md text-sm">multipart/form-data</code> POST request containing your image and the target device ID. 
-              The API automatically detects the dynamic transparent areas of the device frame and composites your image perfectly with rounded corners.
             </p>
 
             <div className="mb-12">
@@ -88,29 +86,72 @@ export default function Home() {
                 </li>
               </ul>
             </div>
+          </div>
+
+          {/* Facebook Downloader API */}
+          <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <h3 className="text-2xl font-black mb-6 text-blue-600 dark:text-blue-400">2. Facebook Media Downloader API</h3>
+            
+            {/* Fetch Endpoint */}
+            <div className="mb-12">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                <code className="text-lg md:text-xl font-mono text-slate-800 dark:text-slate-200 break-all bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                  /api/fb-downloader
+                </code>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
+                Fetch metadata, thumbnails, and direct video/image URLs from a public Facebook URL.
+              </p>
+              
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl mb-8">
+                <div className="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></div>
+                  </div>
+                  <span className="text-xs font-mono text-slate-400">Request Body (JSON)</span>
+                </div>
+                <pre className="p-6 text-sm text-slate-300 font-mono overflow-x-auto leading-relaxed">
+{`{
+  "url": "https://www.facebook.com/reel/1305238694994449"
+}`}
+                </pre>
+              </div>
+            </div>
+
+            {/* Proxy Endpoint */}
+            <div className="mb-12">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                  <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">GET</span>
+                  <code className="text-lg md:text-xl font-mono text-slate-800 dark:text-slate-200 break-all bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                    /api/fb-downloader/proxy?url=URL&filename=NAME
+                  </code>
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
+                  Bypass CORS and force direct downloads with the <code className="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded-md text-sm">Content-Disposition</code> header.
+                </p>
+            </div>
 
             <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
               <div className="bg-slate-800 px-4 py-3 border-b border-slate-700 flex gap-2 items-center">
                 <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></div>
                 <div className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"></div>
                 <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></div>
-                <span className="ml-4 text-xs font-mono text-slate-400">javascript</span>
+                <span className="ml-4 text-xs font-mono text-slate-400">usage-example.js</span>
               </div>
               <pre className="p-6 text-sm text-slate-300 font-mono overflow-x-auto leading-relaxed">
-{`const formData = new FormData();
-formData.append('image', fileInput.files[0]);
-formData.append('deviceId', 'iphone15');
-
-const response = await fetch('https://qalbetools.vercel.app/api/mockup', {
+{`// 1. Fetch formats
+const res = await fetch('/api/fb-downloader', {
   method: 'POST',
-  body: formData
+  body: JSON.stringify({ url: 'FB_URL' })
 });
+const { data } = await res.json();
 
-const data = await response.json();
-if (data.success) {
-  // data.image is a Base64 encoded PNG
-  document.getElementById('result').src = data.image; 
-}`}
+// 2. Download via Proxy
+const downloadUrl = \`/api/fb-downloader/proxy?url=\${encodeURIComponent(data.formats[0].url)}&filename=video.mp4\`;
+window.location.href = downloadUrl;`}
               </pre>
             </div>
           </div>
