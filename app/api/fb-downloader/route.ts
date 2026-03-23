@@ -18,27 +18,41 @@ const UA =
 function parseFdownHtml(html: string) {
   const formats: { quality: string; url: string; filesize: string }[] = [];
 
-  // fdown.net returns anchor tags like: <a href="...cdn-url..." ...>Download SD</a>
-  const linkRegex = /<a[^>]+href="(https:\/\/[^"]+)"[^>]*>\s*(Download [^<]+)\s*<\/a>/gi;
+  // fdown.net এর HTML-এ SD/HD লিংক এইভাবে থাকে:
+  // <a href="https://...fbcdn.../?dl=1" ...>Download SD</a>
+  // Broader regex — শুধু href দিয়ে আটকায় না
+  const linkRegex = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>\s*(Download\s+(?:SD|HD|Video)[^<]*)\s*<\/a>/gi;
   let match;
   while ((match = linkRegex.exec(html)) !== null) {
     const rawUrl = match[1];
     const label  = match[2].trim();
-    if (!rawUrl.includes('facebook') && !rawUrl.includes('fbcdn') && !rawUrl.startsWith('https://')) continue;
-    const quality = label.replace('Download ', '').trim(); // "SD" | "HD"
-    if (quality) {
-      formats.push({ quality, url: rawUrl, filesize: 'Unknown' });
-    }
+    // Skip non-media URLs (skip fdown.net own pages, javascript: etc)
+    if (rawUrl.includes('fdown.net') || rawUrl.startsWith('javascript')) continue;
+    const quality = label.replace(/download\s+/i, '').trim() || 'SD';
+    formats.push({ quality, url: rawUrl, filesize: 'Unknown' });
+  }
+
+  // Fallback: id="sd_link" / id="hd_link" attribute (fdown.net uses these too)
+  const sdMatch = html.match(/id=["']sd_link["'][^>]*href=["'](https?:\/\/[^"']+)["']/i)
+    || html.match(/href=["'](https?:\/\/[^"']+)["'][^>]*id=["']sd_link["']/i);
+  const hdMatch = html.match(/id=["']hd_link["'][^>]*href=["'](https?:\/\/[^"']+)["']/i)
+    || html.match(/href=["'](https?:\/\/[^"']+)["'][^>]*id=["']hd_link["']/i);
+
+  if (sdMatch && !formats.find(f => f.quality === 'SD')) {
+    formats.push({ quality: 'SD', url: sdMatch[1], filesize: 'Unknown' });
+  }
+  if (hdMatch && !formats.find(f => f.quality === 'HD')) {
+    formats.unshift({ quality: 'HD', url: hdMatch[1], filesize: 'Unknown' });
   }
 
   // title
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  const title = titleMatch ? titleMatch[1].replace(' - FDown.net', '').trim() : 'Facebook Video';
+  const title = titleMatch ? titleMatch[1].replace(/\s*-\s*FDown\.net/i, '').trim() : 'Facebook Video';
 
   // thumbnail
-  const thumbMatch = html.match(/<img[^>]+src="(https:\/\/[^"]+)"[^>]*class="[^"]*thumbnail[^"]*"/i)
-    || html.match(/og:image[^>]+content="([^"]+)"/i)
-    || html.match(/<img[^>]+src="(https:\/\/[^"]+fbcdn[^"]+)"/i);
+  const thumbMatch = html.match(/og:image[^>]+content="([^"]+)"/i)
+    || html.match(/<img[^>]+src="(https:\/\/[^"]+fbcdn[^"]+)"/i)
+    || html.match(/<img[^>]+src="(https:\/\/[^"]+\.(jpg|jpeg|png|webp)[^"]*)"/i);
   const thumbnail = thumbMatch ? thumbMatch[1] : '';
 
   return { title, thumbnail, formats };
@@ -74,6 +88,14 @@ function parseSnapsaveHtml(html: string) {
 // Method 1: fdown.net
 // ============================
 async function tryFdown(videoUrl: string) {
+  // Step 1: GET homepage প্রথমে — cookie নেওয়ার জন্য (bot detection bypass)
+  const homeRes = await fetch('https://fdown.net/', {
+    headers: { 'User-Agent': UA, 'Accept': 'text/html' },
+    signal: AbortSignal.timeout(10000),
+  });
+  const cookie = homeRes.headers.get('set-cookie') || '';
+
+  // Step 2: POST with session cookie
   const form = new URLSearchParams({ URLz: videoUrl });
 
   const res = await fetch('https://fdown.net/download.php', {
@@ -83,6 +105,7 @@ async function tryFdown(videoUrl: string) {
       'User-Agent': UA,
       'Referer': 'https://fdown.net/',
       'Origin': 'https://fdown.net',
+      ...(cookie ? { 'Cookie': cookie } : {}),
     },
     body: form.toString(),
     signal: AbortSignal.timeout(15000),
@@ -90,8 +113,11 @@ async function tryFdown(videoUrl: string) {
 
   if (!res.ok) throw new Error(`fdown.net returned ${res.status}`);
   const html = await res.text();
-  const parsed = parseFdownHtml(html);
 
+  // Debug: প্রথম 500 char log করো যাতে parser সমস্যা ধরা যায়
+  console.log('[fdown] HTML preview:', html.slice(0, 500));
+
+  const parsed = parseFdownHtml(html);
   if (parsed.formats.length === 0) throw new Error('fdown.net: no download links found');
   return parsed;
 }
