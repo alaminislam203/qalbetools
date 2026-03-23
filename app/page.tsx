@@ -158,7 +158,10 @@ window.location.href = downloadUrl;`}
 
           {/* Instagram Downloader API */}
           <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl mt-12">
-            <h3 className="text-2xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-400 dark:to-pink-400">3. Instagram Media Downloader API</h3>
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 dark:from-purple-400 dark:to-pink-400">3. Instagram Media Downloader API</h3>
+              <span className="bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-pink-200 dark:border-pink-800">Carousel Support</span>
+            </div>
             
             {/* Fetch Endpoint */}
             <div className="mb-12">
@@ -169,7 +172,7 @@ window.location.href = downloadUrl;`}
                 </code>
               </div>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg mb-6">
-                Extract high-resolution videos and images from any public Instagram URL (Posts, Reels).
+                Download **Reels, Videos, Photos, and Carousels** (Multi-media posts) using our high-reliability multi-method engine (SnapSave, SaveIG, GraphQL).
               </p>
               
               <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl mb-8">
