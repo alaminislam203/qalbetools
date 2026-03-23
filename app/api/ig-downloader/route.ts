@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ndown } from 'nayan-media-downloader';
+import { ndown } from 'nayan-media-downloaders';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
