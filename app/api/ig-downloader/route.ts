@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// CORS Handle for QalbeTalks Frontend
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
@@ -18,18 +17,14 @@ export async function POST(req: Request) {
 
     if (!url || !url.includes('instagram.com')) {
       return NextResponse.json({ success: false, error: 'Valid Instagram URL required' }, { 
-          status: 400, 
-          headers: { 'Access-Control-Allow-Origin': '*' } 
+          status: 400, headers: { 'Access-Control-Allow-Origin': '*' } 
       });
     }
 
-    // ১. Auto https:// Fixer
     let finalUrl = url.trim();
-    if (!finalUrl.startsWith('http')) {
-        finalUrl = 'https://' + finalUrl;
-    }
+    if (!finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
 
-    // ২. Googlebot সেজে ইনস্টাগ্রামকে বোকা বানানো (লগইন ব্লক বাইপাস)
+    // Googlebot ইউজার এজেন্ট দিয়ে রিকোয়েস্ট
     const response = await fetch(finalUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -39,62 +34,74 @@ export async function POST(req: Request) {
     });
 
     const html = await response.text();
+    let videoUrl = '';
+    let imageUrl = '';
 
-    // ৩. Regex দিয়ে HTML এর ভেতর থেকে ভিডিও এবং ছবির ডিরেক্ট লিঙ্ক বের করা
-    const videoMatch = html.match(/<meta property="og:video" content="([^"]+)"/);
-    const imageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+    // ১. Deep Scraping: JSON-LD স্কিমা থেকে ডিরেক্ট ভিডিও লিঙ্ক বের করা (রিলস এর জন্য সবচেয়ে কার্যকরী)
+    const jsonLdMatch = html.match(/"contentUrl"\s*:\s*"([^"]+)"/);
+    if (jsonLdMatch && jsonLdMatch[1]) {
+        // ইনস্টাগ্রামের এনকোডেড ক্যারেক্টার (\u0026 এবং \/) ফিক্স করা
+        videoUrl = jsonLdMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/');
+    }
+
+    // ২. ফলব্যাক: যদি JSON-LD তে না পায়, তবে মেটা ট্যাগ চেক করা
+    if (!videoUrl) {
+        const ogVideo = html.match(/<meta property="og:video" content="([^"]+)"/) || 
+                        html.match(/<meta property="og:video:secure_url" content="([^"]+)"/);
+        if (ogVideo && ogVideo[1]) {
+            videoUrl = ogVideo[1].replace(/&amp;/g, '&');
+        }
+    }
+
+    // ৩. থাম্বনেইল বা ইমেজ লিঙ্ক বের করা
+    const ogImage = html.match(/<meta property="og:image" content="([^"]+)"/);
+    if (ogImage && ogImage[1]) {
+        imageUrl = ogImage[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\\//g, '/');
+    }
+
+    const formats = [];
+
+    // যদি ভিডিও লিঙ্ক পায়, তবে ভিডিও অপশন দেবে
+    if (videoUrl) {
+        formats.push({
+            quality: 'HD Video MP4',
+            ext: 'mp4',
+            url: videoUrl
+        });
+    } 
+    // যদি ভিডিও না পায়, শুধু ছবি থাকলে ছবির অপশন দেবে
+    else if (imageUrl) {
+         formats.push({
+            quality: 'High Res Image',
+            ext: 'jpg',
+            url: imageUrl
+        });
+    }
+
+    if (formats.length === 0) {
+        throw new Error('No media found. The post might be strictly private.');
+    }
+
     const titleMatch = html.match(/<title>(.*?)<\/title>/);
-
-    // টাইটেল ক্লিন করা
-    let title = 'Instagram Media';
+    let title = 'Instagram Reels / Post';
     if (titleMatch && titleMatch[1]) {
         title = titleMatch[1].replace(' - Instagram', '').replace('&quot;', '"');
     }
 
-    const formats = [];
-    let thumbnail = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop'; // ডিফল্ট কভার
-
-    // HTML এনকোডেড লিঙ্ক ফিক্স করা (&amp; কে & তে রূপান্তর)
-    if (imageMatch && imageMatch[1]) {
-        thumbnail = imageMatch[1].replace(/&amp;/g, '&');
-    }
-
-    // ভিডিও লিঙ্ক থাকলে সেটি পুশ করা, না থাকলে ইমেজ পুশ করা
-    if (videoMatch && videoMatch[1]) {
-        formats.push({
-            quality: 'HD Video MP4',
-            ext: 'mp4',
-            url: videoMatch[1].replace(/&amp;/g, '&')
-        });
-    } else if (imageMatch && imageMatch[1]) {
-         formats.push({
-            quality: 'High Res Image',
-            ext: 'jpg',
-            url: imageMatch[1].replace(/&amp;/g, '&')
-        });
-    }
-
-    // কোনো মিডিয়াই না পাওয়া গেলে এরর থ্রো করবে
-    if (formats.length === 0) {
-        throw new Error('Media not found in HTML. The post might be strictly private.');
-    }
-
     const mediaInfo = {
       title: title,
-      thumbnail: thumbnail,
+      thumbnail: imageUrl || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop',
       formats: formats
     };
 
     return NextResponse.json({ success: true, data: mediaInfo }, { 
-        status: 200, 
-        headers: { 'Access-Control-Allow-Origin': '*' } 
+        status: 200, headers: { 'Access-Control-Allow-Origin': '*' } 
     });
 
   } catch (error: any) {
-    console.error('IG Scraper Error:', error.message);
-    return NextResponse.json({ success: false, error: 'Failed to fetch media. The post is private or blocked by Instagram.' }, { 
-        status: 500, 
-        headers: { 'Access-Control-Allow-Origin': '*' } 
+    console.error('IG Deep Scraper Error:', error.message);
+    return NextResponse.json({ success: false, error: 'ভিডিওটি পাওয়া যায়নি। এটি হয়তো প্রাইভেট রিলস।' }, { 
+        status: 500, headers: { 'Access-Control-Allow-Origin': '*' } 
     });
   }
 }
