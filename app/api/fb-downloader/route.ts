@@ -1,90 +1,256 @@
 import { NextResponse } from 'next/server';
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  });
+// ============================
+// CORS Headers
+// ============================
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+const UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+
+// ============================
+// Helper: Extract video URLs from fdown.net HTML
+// ============================
+function parseFdownHtml(html: string) {
+  const formats: { quality: string; url: string; filesize: string }[] = [];
+
+  // fdown.net returns anchor tags like: <a href="...cdn-url..." ...>Download SD</a>
+  const linkRegex = /<a[^>]+href="(https:\/\/[^"]+)"[^>]*>\s*(Download [^<]+)\s*<\/a>/gi;
+  let match;
+  while ((match = linkRegex.exec(html)) !== null) {
+    const rawUrl = match[1];
+    const label  = match[2].trim();
+    if (!rawUrl.includes('facebook') && !rawUrl.includes('fbcdn') && !rawUrl.startsWith('https://')) continue;
+    const quality = label.replace('Download ', '').trim(); // "SD" | "HD"
+    if (quality) {
+      formats.push({ quality, url: rawUrl, filesize: 'Unknown' });
+    }
+  }
+
+  // title
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  const title = titleMatch ? titleMatch[1].replace(' - FDown.net', '').trim() : 'Facebook Video';
+
+  // thumbnail
+  const thumbMatch = html.match(/<img[^>]+src="(https:\/\/[^"]+)"[^>]*class="[^"]*thumbnail[^"]*"/i)
+    || html.match(/og:image[^>]+content="([^"]+)"/i)
+    || html.match(/<img[^>]+src="(https:\/\/[^"]+fbcdn[^"]+)"/i);
+  const thumbnail = thumbMatch ? thumbMatch[1] : '';
+
+  return { title, thumbnail, formats };
 }
 
+// ============================
+// Helper: Extract video URLs from snapsave.app HTML
+// ============================
+function parseSnapsaveHtml(html: string) {
+  const formats: { quality: string; url: string; filesize: string }[] = [];
+
+  // snapsave returns links like: <a href="...cdn..." ...> SD Video </a>
+  const linkRegex = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*class="[^"]*btn[^"]*"[^>]*>\s*([^<]+)\s*<\/a>/gi;
+  let match;
+  while ((match = linkRegex.exec(html)) !== null) {
+    const rawUrl = match[1];
+    const label  = match[2].trim();
+    if (rawUrl.includes('snapsave') || rawUrl.includes('javascript')) continue;
+    if (label.toLowerCase().includes('hd') || label.toLowerCase().includes('sd') || label.toLowerCase().includes('download')) {
+      const quality = label.includes('HD') ? 'HD' : label.includes('SD') ? 'SD' : 'Auto';
+      formats.push({ quality, url: rawUrl, filesize: 'Unknown' });
+    }
+  }
+
+  const thumbMatch = html.match(/<img[^>]+src="(https:\/\/[^"]+)"[^>]*style="[^"]*width:\s*160/i)
+    || html.match(/<img[^>]+src="(https:\/\/[^"]+fbcdn[^"]+)"/i);
+  const thumbnail = thumbMatch ? thumbMatch[1] : '';
+
+  return { thumbnail, formats };
+}
+
+// ============================
+// Method 1: fdown.net
+// ============================
+async function tryFdown(videoUrl: string) {
+  const form = new URLSearchParams({ URLz: videoUrl });
+
+  const res = await fetch('https://fdown.net/download.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': UA,
+      'Referer': 'https://fdown.net/',
+      'Origin': 'https://fdown.net',
+    },
+    body: form.toString(),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!res.ok) throw new Error(`fdown.net returned ${res.status}`);
+  const html = await res.text();
+  const parsed = parseFdownHtml(html);
+
+  if (parsed.formats.length === 0) throw new Error('fdown.net: no download links found');
+  return parsed;
+}
+
+// ============================
+// Method 2: snapsave.app
+// ============================
+async function trySnapsave(videoUrl: string) {
+  // Step 1: GET homepage to grab token
+  const homeRes = await fetch('https://snapsave.app/', {
+    headers: { 'User-Agent': UA },
+    signal: AbortSignal.timeout(10000),
+  });
+  const homeHtml = await homeRes.text();
+
+  const tokenMatch = homeHtml.match(/name="token"\s+value="([^"]+)"/i);
+  const token = tokenMatch ? tokenMatch[1] : '';
+
+  const form = new URLSearchParams({ url: videoUrl, token });
+
+  const res = await fetch('https://snapsave.app/action.php', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': UA,
+      'Referer': 'https://snapsave.app/',
+      'Origin': 'https://snapsave.app',
+    },
+    body: form.toString(),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!res.ok) throw new Error(`snapsave returned ${res.status}`);
+  const html = await res.text();
+  const parsed = parseSnapsaveHtml(html);
+
+  if (parsed.formats.length === 0) throw new Error('snapsave: no download links found');
+  return { title: 'Facebook Video', ...parsed };
+}
+
+// ============================
+// Method 3: youtube-dl-exec (yt-dlp)
+// ============================
+async function tryYtdlp(videoUrl: string) {
+  const youtubedl = (await import('youtube-dl-exec')).default;
+
+  const output = await youtubedl(videoUrl, {
+    dumpSingleJson: true,
+    noCheckCertificates: true,
+    noWarnings: true,
+    preferFreeFormats: true,
+    addHeader: [
+      'referer:https://www.facebook.com',
+      `user-agent:${UA}`,
+    ],
+  }) as any;
+
+  const formats = (output.formats || [])
+    .filter((f: any) => f.vcodec !== 'none' && f.ext === 'mp4')
+    .map((f: any) => ({
+      quality: f.format_note || (f.height ? `${f.height}p` : 'HD'),
+      url: f.url,
+      filesize: f.filesize
+        ? (f.filesize / 1024 / 1024).toFixed(2) + ' MB'
+        : 'Unknown',
+    }))
+    .sort((a: any, b: any) => parseInt(b.quality) - parseInt(a.quality));
+
+  if (formats.length === 0) throw new Error('yt-dlp: no video formats found');
+
+  return {
+    title:     output.title     || 'Facebook Video',
+    thumbnail: output.thumbnail || '',
+    formats,
+  };
+}
+
+// ============================
+// OPTIONS (CORS Preflight)
+// ============================
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS });
+}
+
+// ============================
+// POST Handler
+// ============================
 export async function POST(req: Request) {
   try {
     const { url } = await req.json();
 
-    if (!url || !url.includes('facebook.com') && !url.includes('fb.watch')) {
-      return NextResponse.json({ success: false, error: 'Valid Facebook URL required' }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
+    const isFacebook =
+      url &&
+      (url.includes('facebook.com') ||
+        url.includes('fb.watch') ||
+        url.includes('fb.com'));
+
+    if (!isFacebook) {
+      return NextResponse.json(
+        { success: false, error: 'Valid Facebook URL required' },
+        { status: 400, headers: CORS }
+      );
     }
 
-    // ১. প্রথমে রিডাইরেক্ট লিঙ্ক (যেমন /share/v/) সলভ করে আসল লিঙ্ক বের করা
-    let finalUrl = url;
+    const errors: string[] = [];
+    let result: { title: string; thumbnail: string; formats: any[] } | null = null;
+
+    // ── Method 1: fdown.net ──────────────────────────────────
     try {
-        const redirectRes = await fetch(url, { method: 'HEAD', redirect: 'follow' });
-        finalUrl = redirectRes.url;
-    } catch (e) {
-        console.log("Redirect check failed, using original URL.");
+      result = await tryFdown(url);
+      console.log('[FB] ✅ fdown.net succeeded');
+    } catch (e: any) {
+      console.warn('[FB] ⚠️ fdown.net failed:', e.message);
+      errors.push('fdown: ' + e.message);
     }
 
-    // ২. ফেসবুকের পেজ থেকে সরাসরি HTML ডাটা স্ক্র্যাপ করা (ব্রাউজারের ছদ্মবেশে)
-    const response = await fetch(finalUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-Mode': 'navigate',
+    // ── Method 2: snapsave.app ───────────────────────────────
+    if (!result) {
+      try {
+        result = await trySnapsave(url);
+        console.log('[FB] ✅ snapsave.app succeeded');
+      } catch (e: any) {
+        console.warn('[FB] ⚠️ snapsave.app failed:', e.message);
+        errors.push('snapsave: ' + e.message);
       }
-    });
-
-    const html = await response.text();
-
-    // ৩. Regex দিয়ে HTML এর ভেতর থেকে ভিডিওর ডিরেক্ট লিঙ্ক বের করা
-    const hdMatch = html.match(/"hd_src":"([^"]+)"/);
-    const sdMatch = html.match(/"sd_src":"([^"]+)"/);
-    const titleMatch = html.match(/<title>(.*?)<\/title>/);
-
-    let title = 'Facebook Video';
-    if (titleMatch && titleMatch[1]) {
-        // টাইটেল থেকে অপ্রয়োজনীয় লেখা বাদ দেওয়া
-        title = titleMatch[1].replace(' | Facebook', '').replace('&quot;', '"');
     }
 
-    const formats = [];
-
-    // ডিরেক্ট লিঙ্কগুলোকে ডিকোড করা (ফেসবুকের \/ কে / তে রূপান্তর করা)
-    if (hdMatch && hdMatch[1] !== 'null') {
-        formats.push({
-            quality: 'HD Quality',
-            url: hdMatch[1].split('\\/').join('/'),
-            filesize: 'Ready'
-        });
+    // ── Method 3: yt-dlp ────────────────────────────────────
+    if (!result) {
+      try {
+        result = await tryYtdlp(url);
+        console.log('[FB] ✅ yt-dlp succeeded');
+      } catch (e: any) {
+        console.warn('[FB] ⚠️ yt-dlp failed:', e.message);
+        errors.push('ytdlp: ' + e.message);
+      }
     }
 
-    if (sdMatch && sdMatch[1] !== 'null') {
-        formats.push({
-            quality: 'SD Quality',
-            url: sdMatch[1].split('\\/').join('/'),
-            filesize: 'Ready'
-        });
+    if (!result) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'All download methods failed. The video may be private, deleted, or georestricted.',
+          details: errors,
+        },
+        { status: 500, headers: CORS }
+      );
     }
 
-    if (formats.length === 0) {
-        throw new Error('No public video source found in the page HTML.');
-    }
-
-    const mediaInfo = {
-      title: title,
-      thumbnail: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?q=80&w=600&auto=format&fit=crop', // ডিফল্ট কভার
-      formats: formats
-    };
-
-    return NextResponse.json({ success: true, data: mediaInfo }, { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
-
-  } catch (error: any) {
-    console.error('Regex Scraper Error:', error.message);
-    return NextResponse.json({ success: false, error: 'ভিডিওটি প্রাইভেট অথবা ফেসবুক লিঙ্কটি ব্লক করে রেখেছে।' }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return NextResponse.json(
+      { success: true, data: result },
+      { status: 200, headers: CORS }
+    );
+  } catch (err: any) {
+    console.error('[FB] Fatal error:', err.message);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error', details: err.message },
+      { status: 500, headers: CORS }
+    );
   }
 }
