@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-const { igdl } = require('ab-downloader'); // নতুন প্যাকেজ ইমপোর্ট
+const { igdl } = require('ab-downloader');
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +12,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: CORS });
 }
 
-// ── ২. GET: Proxy Downloader (সরাসরি ডাউনলোডের জন্য) ─────────────────────────
+// ── ২. GET: Proxy Downloader ───────────────────────────────────────────────────
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const proxyUrl = searchParams.get('proxyUrl');
@@ -24,8 +24,9 @@ export async function GET(req: Request) {
   try {
     const upstream = await fetch(proxyUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.instagram.com/',
+        'Accept': '*/*'
       },
       signal: AbortSignal.timeout(60000), 
     });
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
   }
 }
 
-// ── ৩. POST: Media Fetcher (AB-DOWNLOADER ব্যবহার করে) ────────────────────────
+// ── ৩. POST: Media Fetcher (Triple Engine) ────────────────────────────────────
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -57,43 +58,90 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Valid Instagram URL required' }, { status: 400, headers: CORS });
     }
 
-    // ab-downloader এর igdl ফাংশন কল করা হলো
-    const result = await igdl(url);
-    console.log("AB-Downloader IG Result:", result); // ডিবাগিংয়ের জন্য
+    let formats: any[] = [];
+    
+    // Smart Checker: ইউজার কি রিলস/ভিডিও এর লিঙ্ক দিয়েছে?
+    const isReel = url.includes('/reel/') || url.includes('/reels/') || url.includes('/tv/');
 
-    if (!result || !Array.isArray(result) || result.length === 0) {
-       throw new Error('No media found or post is private');
+    // === ইঞ্জিন ১: AB-Downloader (Primary) ===
+    try {
+        const result = await igdl(url);
+        if (result && Array.isArray(result)) {
+            formats = result.map((item: any) => {
+                const mediaUrl = item.url;
+                // যদি লিংকে .mp4 থাকে, অথবা ইউজার রিলসের লিংক দেয়, তবে সেটি ১০০% ভিডিও
+                const isVideo = (mediaUrl && mediaUrl.includes('.mp4')) || isReel;
+                
+                return {
+                    quality: isVideo ? 'HD Video MP4' : 'High Res Image JPG',
+                    ext: isVideo ? 'mp4' : 'jpg',
+                    url: mediaUrl
+                };
+            }).filter(f => f.url);
+        }
+    } catch (e: any) {
+        console.log("Engine 1 (AB) Failed:", e.message);
     }
 
-    // ডাটাগুলোকে ফ্রন্টএন্ডের জন্য সাজানো
-    const formats = result.map((item: any, index: number) => {
-        const mediaUrl = item.url;
-        // লিংকে .mp4 থাকলে ভিডিও, নাহলে ছবি
-        const isVideo = mediaUrl && mediaUrl.includes('.mp4');
-        
-        return {
-            quality: isVideo ? 'HD Video MP4' : 'High Res Image JPG',
-            ext: isVideo ? 'mp4' : 'jpg',
-            url: mediaUrl
-        };
-    }).filter((f: any) => f.url); // যাদের URL নেই তাদের বাদ দেওয়া
+    // ভ্যালিডেশন: যদি রিলসের লিংক হয়, কিন্তু আমরা শুধু Image পাই, তার মানে ইঞ্জিন ১ ভুল ডাটা দিয়েছে!
+    const hasVideo = formats.some(f => f.ext === 'mp4');
+    if (isReel && !hasVideo) {
+        console.log("Only image found for a Reel. Discarding and switching to Fallback API...");
+        formats = []; // ভুল ডাটা ক্লিয়ার করে দিলাম
+    }
+
+    // === ইঞ্জিন ২: VKR API (Fallback) ===
+    if (formats.length === 0) {
+        try {
+            const fbRes = await fetch(`https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(url)}`);
+            const fbData = await fbRes.json();
+
+            if (fbData && fbData.data && fbData.data.downloads) {
+                formats = fbData.data.downloads.map((item: any) => ({
+                    quality: item.ext === 'mp4' || item.url.includes('.mp4') || isReel ? 'HD Video MP4' : 'High Res Image',
+                    ext: item.ext || (item.url.includes('.mp4') || isReel ? 'mp4' : 'jpg'),
+                    url: item.url
+                }));
+            }
+        } catch (e: any) {
+            console.log("Engine 2 (VKR) Failed:", e.message);
+        }
+    }
+
+    // === ইঞ্জিন ৩: BK9 API (Ultimate Backup) ===
+    if (formats.length === 0) {
+        try {
+            const bkRes = await fetch(`https://bk9.fun/ig/igdl?url=${encodeURIComponent(url)}`);
+            const bkData = await bkRes.json();
+
+            if (bkData && bkData.BK9) {
+                formats = bkData.BK9.map((item: any) => ({
+                    quality: item.url.includes('.mp4') || isReel ? 'HD Video MP4' : 'High Res Image',
+                    ext: item.url.includes('.mp4') || isReel ? 'mp4' : 'jpg',
+                    url: item.url
+                }));
+            }
+        } catch (e: any) {
+            console.log("Engine 3 (BK9) Failed:", e.message);
+        }
+    }
 
     if (formats.length === 0) {
-        throw new Error('Valid download links not found.');
+        throw new Error('All scraping engines failed. Post might be strictly private.');
     }
 
     const mediaInfo = {
-      title: 'Instagram Post / Reels',
-      thumbnail: result[0]?.thumbnail || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop',
+      title: 'Instagram Reels / Post',
+      thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop',
       formats: formats
     };
 
     return NextResponse.json({ success: true, data: mediaInfo }, { status: 200, headers: CORS });
 
   } catch (err: any) {
-    console.error('[IG Fetch Error]:', err.message);
+    console.error('[IG Fatal Error]:', err.message);
     return NextResponse.json(
-      { success: false, error: 'মিডিয়া পাওয়া যায়নি। লিংকটি সঠিক কিনা চেক করুন।', details: err.message },
+      { success: false, error: 'মিডিয়া পাওয়া যায়নি। লিংকটি সঠিক বা পাবলিক কিনা চেক করুন।', details: err.message },
       { status: 500, headers: CORS }
     );
   }
