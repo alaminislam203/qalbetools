@@ -38,7 +38,7 @@ export async function GET(req: Request) {
   } catch (error) { return NextResponse.json({ error: 'Proxy failed' }, { status: 500, headers: CORS }); }
 }
 
-// ── ৩. POST: YouTube Fetcher (Triple Engine) ──────────────────────────────────
+// ── ৩. POST: YouTube Fetcher (Smart Parser) ──────────────────────────────────
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     let title = 'YouTube Video';
     let thumbnail = 'https://images.unsplash.com/photo-1611162618758-6a4fd40becd8?q=80&w=600&auto=format&fit=crop';
 
-    // একটি হেল্পার ফাংশন: যাতে কোনো প্যাকেজ আটকে গেলে ১০ সেকেন্ড পর পরের ইঞ্জিনে চলে যায়
+    // একটি হেল্পার ফাংশন: যাতে কোনো প্যাকেজ আটকে গেলে টাইমআউট হয়
     const fetchTimeout = (promise: any, ms: number) => {
         return Promise.race([
             promise,
@@ -60,27 +60,44 @@ export async function POST(req: Request) {
         ]);
     };
 
-    // === ইঞ্জিন ১: AB-Downloader ===
+    // === ইঞ্জিন ১: AB-Downloader (আপনার দেওয়া লজিক অনুযায়ী) ===
     try {
         console.log("YT Engine 1: Trying AB-Downloader...");
-        const result: any = await fetchTimeout(youtube(url), 12000); // ১২ সেকেন্ড টাইমআউট
-        if (result && result.data) {
-            title = result.title || title;
-            thumbnail = result.thumbnail || thumbnail;
+        
+        // await ব্যবহার করে আপনার দেওয়া লজিকটি রান করা হলো
+        const data: any = await fetchTimeout(youtube(url), 15000); 
+        console.log('✅ YouTube data received from AB:', data); // ডিবাগিং
+
+        if (data) {
+            title = data.title || title;
+            thumbnail = data.thumbnail || thumbnail;
             
-            if (Array.isArray(result.data.video)) {
-                result.data.video.forEach((vid: any, i: number) => formats.push({ quality: vid.quality || `Video ${i+1}`, ext: 'mp4', url: vid.url || vid }));
-            } else if (result.data.video) {
-                formats.push({ quality: 'HD Video', ext: 'mp4', url: result.data.video });
+            // ডাটা স্ট্রাকচার যেভাবেই আসুক, খুঁজে বের করার লজিক
+            const vids = data.video || data.url || data.hd || (data.data && data.data.video);
+            const auds = data.audio || (data.data && data.data.audio);
+
+            // ভিডিও প্রসেসিং
+            if (Array.isArray(vids)) {
+                vids.forEach((vid: any, i: number) => {
+                    formats.push({ quality: vid.quality || `Video ${i+1}`, ext: 'mp4', url: vid.url || vid.hd || vid.sd || vid });
+                });
+            } else if (typeof vids === 'string') {
+                formats.push({ quality: 'HD Video MP4', ext: 'mp4', url: vids });
+            } else if (typeof vids === 'object' && vids.hd) {
+                formats.push({ quality: 'HD Video MP4', ext: 'mp4', url: vids.hd });
+                if (vids.sd) formats.push({ quality: 'SD Video MP4', ext: 'mp4', url: vids.sd });
             }
 
-            if (Array.isArray(result.data.audio)) {
-                result.data.audio.forEach((aud: any) => formats.push({ quality: 'Audio MP3', ext: 'mp3', url: aud.url || aud }));
-            } else if (result.data.audio) {
-                formats.push({ quality: 'Audio MP3', ext: 'mp3', url: result.data.audio });
+            // অডিও প্রসেসিং
+            if (Array.isArray(auds)) {
+                auds.forEach((aud: any) => formats.push({ quality: 'Audio MP3', ext: 'mp3', url: aud.url || aud }));
+            } else if (typeof auds === 'string') {
+                formats.push({ quality: 'Audio MP3', ext: 'mp3', url: auds });
             }
         }
-    } catch (e: any) { console.log("YT Engine 1 Failed:", e.message); }
+    } catch (e: any) { 
+        console.log("❌ YT Engine 1 Failed:", e.message); 
+    }
 
     // === ইঞ্জিন ২: VKR API (Fallback) ===
     if (formats.length === 0) {
@@ -117,7 +134,7 @@ export async function POST(req: Request) {
         } catch (e: any) { console.log("YT Engine 3 Failed:", e.message); }
     }
 
-    if (formats.length === 0) throw new Error('Could not fetch YouTube data. The video might be restricted.');
+    if (formats.length === 0) throw new Error('Could not fetch YouTube data. The video might be restricted or age-gated.');
 
     // ডুপ্লিকেট লিঙ্ক ফিল্টার করা
     const uniqueFormats = Array.from(new Map(formats.map(item => [item.url, item])).values());
