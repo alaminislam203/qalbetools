@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { instagram } from 'nayan-media-downloaders';
+const { igdl } = require('ab-downloader'); // নতুন প্যাকেজ ইমপোর্ট
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +12,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: CORS });
 }
 
-// ── ২. GET: Proxy Downloader ───────────────────────────────────────────────────
+// ── ২. GET: Proxy Downloader (সরাসরি ডাউনলোডের জন্য) ─────────────────────────
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const proxyUrl = searchParams.get('proxyUrl');
@@ -24,9 +24,8 @@ export async function GET(req: Request) {
   try {
     const upstream = await fetch(proxyUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.instagram.com/',
-        'Accept': '*/*'
       },
       signal: AbortSignal.timeout(60000), 
     });
@@ -48,7 +47,7 @@ export async function GET(req: Request) {
   }
 }
 
-// ── ৩. POST: Smart Media Fetcher (Array/Object Fix + Fallback) ────────────────
+// ── ৩. POST: Media Fetcher (AB-DOWNLOADER ব্যবহার করে) ────────────────────────
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -58,69 +57,43 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Valid Instagram URL required' }, { status: 400, headers: CORS });
     }
 
-    let formats: any[] = [];
-    let thumbnail = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop';
+    // ab-downloader এর igdl ফাংশন কল করা হলো
+    const result = await igdl(url);
+    console.log("AB-Downloader IG Result:", result); // ডিবাগিংয়ের জন্য
 
-    // === পদ্ধতি ১: Nayan Media Downloader (Array vs Object Fix) ===
-    try {
-        const result = await instagram(url);
-        if (result && result.data) {
-            // যদি ডাটা Object হয়, তবে তাকে Array তে কনভার্ট করে নেব
-            const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-
-            formats = dataArray.map((item: any) => {
-                const mediaUrl = item.url || item.video || item.image || item.hd;
-                if (!mediaUrl) return null;
-
-                const isVideo = mediaUrl.includes('.mp4') || item.type === 'video' || !!item.video;
-                return {
-                    quality: isVideo ? 'HD Video MP4' : 'High Res Image JPG',
-                    ext: isVideo ? 'mp4' : 'jpg',
-                    url: mediaUrl
-                };
-            }).filter(Boolean); // null ভ্যালুগুলো রিমুভ করা
-        }
-    } catch (e: any) {
-        console.log("Nayan Package Failed:", e.message);
+    if (!result || !Array.isArray(result) || result.length === 0) {
+       throw new Error('No media found or post is private');
     }
 
-    // === পদ্ধতি ২: Fallback API (যদি প্যাকেজ Vercel এ ব্লক খায়) ===
-    if (formats.length === 0) {
-        try {
-            console.log("Using Fallback API...");
-            // একটি ফ্রি এবং শক্তিশালী পাবলিক এপিআই ব্যবহার
-            const fallbackRes = await fetch(`https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(url)}`);
-            const fallbackData = await fallbackRes.json();
+    // ডাটাগুলোকে ফ্রন্টএন্ডের জন্য সাজানো
+    const formats = result.map((item: any, index: number) => {
+        const mediaUrl = item.url;
+        // লিংকে .mp4 থাকলে ভিডিও, নাহলে ছবি
+        const isVideo = mediaUrl && mediaUrl.includes('.mp4');
+        
+        return {
+            quality: isVideo ? 'HD Video MP4' : 'High Res Image JPG',
+            ext: isVideo ? 'mp4' : 'jpg',
+            url: mediaUrl
+        };
+    }).filter((f: any) => f.url); // যাদের URL নেই তাদের বাদ দেওয়া
 
-            if (fallbackData && fallbackData.data && fallbackData.data.downloads) {
-                formats = fallbackData.data.downloads.map((item: any) => ({
-                    quality: 'HD Video/Image',
-                    ext: item.url.includes('.mp4') ? 'mp4' : 'jpg',
-                    url: item.url
-                }));
-            }
-        } catch (e: any) {
-            console.log("Fallback API Failed:", e.message);
-        }
-    }
-
-    // যদি দুটি পদ্ধতিই ফেইল করে
     if (formats.length === 0) {
-        throw new Error('All scraping methods failed. Post might be strictly private.');
+        throw new Error('Valid download links not found.');
     }
 
     const mediaInfo = {
-      title: 'Instagram Reels / Media',
-      thumbnail: thumbnail,
+      title: 'Instagram Post / Reels',
+      thumbnail: result[0]?.thumbnail || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop',
       formats: formats
     };
 
     return NextResponse.json({ success: true, data: mediaInfo }, { status: 200, headers: CORS });
 
   } catch (err: any) {
-    console.error('[IG Fatal Error]:', err.message);
+    console.error('[IG Fetch Error]:', err.message);
     return NextResponse.json(
-      { success: false, error: 'মিডিয়া পাওয়া যায়নি। লিংকটি সঠিক বা পাবলিক কিনা চেক করুন।', details: err.message },
+      { success: false, error: 'মিডিয়া পাওয়া যায়নি। লিংকটি সঠিক কিনা চেক করুন।', details: err.message },
       { status: 500, headers: CORS }
     );
   }
