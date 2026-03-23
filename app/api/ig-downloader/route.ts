@@ -21,7 +21,6 @@ interface Format {
   filesize: string;
   ext: string;
 }
-
 interface MediaResult {
   title: string;
   thumbnail: string;
@@ -77,9 +76,7 @@ async function tryInstagramEmbed(url: string): Promise<MediaResult> {
         html = await res.text();
         break;
       }
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
 
   if (!html) throw new Error('Embed: All embed URLs failed');
@@ -155,9 +152,7 @@ async function tryInstagramEmbed(url: string): Promise<MediaResult> {
             formats.push({ quality: `Image ${i + 1}`, url: decodeIgUrl(node.display_url), filesize: 'Unknown', ext: 'jpg' });
           }
         });
-      } catch {
-        /* ignore parse error */
-      }
+      } catch { /* ignore parse error */ }
     }
   }
 
@@ -223,7 +218,6 @@ async function tryCobalt(url: string): Promise<MediaResult> {
 
       if (!res.ok) continue;
       const data = await res.json() as any;
-
       if (data.status === 'error' || (!data.url && !data.picker)) continue;
 
       const formats: Format[] = [];
@@ -245,9 +239,7 @@ async function tryCobalt(url: string): Promise<MediaResult> {
       if (formats.length === 0) continue;
       console.log(`[IG] ✅ Cobalt succeeded via ${base}`);
       return { title: 'Instagram Media', thumbnail: '', formats };
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
   throw new Error('All Cobalt instances failed');
 }
@@ -304,17 +296,13 @@ async function downloadInstagram(rawUrl: string): Promise<MediaResult> {
   // Kick off oEmbed in background for metadata enrichment
   let oembedMeta: { title: string; thumbnail: string } | null = null;
   const oembedPromise = tryOEmbed(cleanUrl)
-    .then((m) => {
-      oembedMeta = m;
-    })
-    .catch(() => {
-      oembedMeta = null;
-    });
+    .then(m => { oembedMeta = m; })
+    .catch(() => {});
 
   const methods = [
     { name: 'GraphQL Embed', fn: () => tryInstagramEmbed(cleanUrl) },
-    { name: 'Cobalt v2', fn: () => tryCobalt(cleanUrl) },
-    { name: 'igram.world', fn: () => tryIgram(cleanUrl) },
+    { name: 'Cobalt v2',     fn: () => tryCobalt(cleanUrl) },
+    { name: 'igram.world',   fn: () => tryIgram(cleanUrl) },
   ];
 
   const errors: string[] = [];
@@ -324,17 +312,16 @@ async function downloadInstagram(rawUrl: string): Promise<MediaResult> {
       const result = await method.fn();
       console.log(`[IG] ✅ ${method.name} succeeded`);
 
-      // Wait briefly for oEmbed metadata (max 1s)
-      await Promise.race([oembedPromise, new Promise((r) => setTimeout(r, 1000))]);
+      // Wait briefly for oEmbed metadata
+      await Promise.race([oembedPromise, new Promise(r => setTimeout(r, 1000))]);
 
       // Enrich with oEmbed if scraper got generic values
       if (oembedMeta) {
-        const meta = oembedMeta as { title: string; thumbnail: string };
         if (!result.title || result.title === 'Instagram Media') {
-          result.title = meta.title || result.title;
+          result.title = oembedMeta.title || result.title;
         }
         if (!result.thumbnail) {
-          result.thumbnail = meta.thumbnail;
+          result.thumbnail = oembedMeta.thumbnail;
         }
       }
 
@@ -369,6 +356,7 @@ export async function POST(req: Request) {
 
     const result = await downloadInstagram(url);
     return NextResponse.json({ success: true, data: result }, { status: 200, headers: CORS });
+
   } catch (err: any) {
     console.error('[IG] Fatal:', err.message);
     return NextResponse.json(
