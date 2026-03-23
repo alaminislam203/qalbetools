@@ -23,59 +23,64 @@ export async function POST(req: Request) {
       });
     }
 
-    // Cobalt API দিয়ে ইনস্টাগ্রামের লগইন ব্লক বাইপাস করা
-    const cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
-      method: 'POST',
+    // ১. Auto https:// Fixer
+    let finalUrl = url.trim();
+    if (!finalUrl.startsWith('http')) {
+        finalUrl = 'https://' + finalUrl;
+    }
+
+    // ২. Googlebot সেজে ইনস্টাগ্রামকে বোকা বানানো (লগইন ব্লক বাইপাস)
+    const response = await fetch(finalUrl, {
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-      },
-      body: JSON.stringify({
-        url: url,
-        filenamePattern: "classic"
-      })
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      }
     });
 
-    const data = await cobaltRes.json();
+    const html = await response.text();
 
-    if (data.status === 'error') {
-        throw new Error(data.text || 'Instagram API blocked the request');
+    // ৩. Regex দিয়ে HTML এর ভেতর থেকে ভিডিও এবং ছবির ডিরেক্ট লিঙ্ক বের করা
+    const videoMatch = html.match(/<meta property="og:video" content="([^"]+)"/);
+    const imageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+    const titleMatch = html.match(/<title>(.*?)<\/title>/);
+
+    // টাইটেল ক্লিন করা
+    let title = 'Instagram Media';
+    if (titleMatch && titleMatch[1]) {
+        title = titleMatch[1].replace(' - Instagram', '').replace('&quot;', '"');
     }
 
     const formats = [];
-    let thumbnail = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop'; // ডিফল্ট ইনস্টাগ্রাম কভার
+    let thumbnail = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop'; // ডিফল্ট কভার
 
-    // ১. যদি পোস্টে একাধিক ছবি বা ভিডিও থাকে (Carousel / Slider)
-    if (data.picker && data.picker.length > 0) {
-        data.picker.forEach((item: any, index: number) => {
-            formats.push({
-                quality: item.type === 'video' ? 'HD Video' : 'High Res Image',
-                ext: item.type === 'video' ? 'mp4' : 'jpg',
-                url: item.url,
-            });
-            // প্রথম আইটেমের থাম্বনেইল কভার হিসেবে সেট করা
-            if (index === 0 && item.thumb) thumbnail = item.thumb;
-        });
-    } 
-    // ২. যদি পোস্টে একটি মাত্র ভিডিও বা রিলস (Reels) থাকে
-    else if (data.url) {
-        // লিঙ্কে .mp4 থাকলে ভিডিও, না থাকলে ছবি ধরে নেওয়া
-        const isVideo = data.url.includes('.mp4') || !url.includes('/p/');
+    // HTML এনকোডেড লিঙ্ক ফিক্স করা (&amp; কে & তে রূপান্তর)
+    if (imageMatch && imageMatch[1]) {
+        thumbnail = imageMatch[1].replace(/&amp;/g, '&');
+    }
+
+    // ভিডিও লিঙ্ক থাকলে সেটি পুশ করা, না থাকলে ইমেজ পুশ করা
+    if (videoMatch && videoMatch[1]) {
         formats.push({
-            quality: isVideo ? 'HD Video' : 'High Res Image',
-            ext: isVideo ? 'mp4' : 'jpg',
-            url: data.url,
+            quality: 'HD Video MP4',
+            ext: 'mp4',
+            url: videoMatch[1].replace(/&amp;/g, '&')
+        });
+    } else if (imageMatch && imageMatch[1]) {
+         formats.push({
+            quality: 'High Res Image',
+            ext: 'jpg',
+            url: imageMatch[1].replace(/&amp;/g, '&')
         });
     }
 
+    // কোনো মিডিয়াই না পাওয়া গেলে এরর থ্রো করবে
     if (formats.length === 0) {
-        throw new Error('No media found in this URL.');
+        throw new Error('Media not found in HTML. The post might be strictly private.');
     }
 
-    // ফ্রন্টএন্ডের জন্য ডাটা প্যাক করা
     const mediaInfo = {
-      title: 'Instagram Post / Reels',
+      title: title,
       thumbnail: thumbnail,
       formats: formats
     };
@@ -87,7 +92,7 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('IG Scraper Error:', error.message);
-    return NextResponse.json({ success: false, error: 'Failed to fetch Instagram media. The post might be private or unavailable.' }, { 
+    return NextResponse.json({ success: false, error: 'Failed to fetch media. The post is private or blocked by Instagram.' }, { 
         status: 500, 
         headers: { 'Access-Control-Allow-Origin': '*' } 
     });
