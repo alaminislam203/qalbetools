@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ['youtube-dl-exec'],
   async headers() {
     return [
       {
