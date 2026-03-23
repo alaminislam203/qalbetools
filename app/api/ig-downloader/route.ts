@@ -293,35 +293,34 @@ async function tryIgram(url: string): Promise<MediaResult> {
 async function downloadInstagram(rawUrl: string): Promise<MediaResult> {
   const cleanUrl = rawUrl.split('?')[0].replace(/\/$/, '');
 
-  // Kick off oEmbed in background for metadata enrichment
-  let oembedMeta: { title: string; thumbnail: string } | null = null;
-  const oembedPromise = tryOEmbed(cleanUrl)
-    .then(m => { oembedMeta = m; })
-    .catch(() => {});
+  const oembedPromise = tryOEmbed(cleanUrl).catch(() => null);
 
-  const methods = [
+  const methods: { name: string; fn: () => Promise<MediaResult> }[] = [
     { name: 'GraphQL Embed', fn: () => tryInstagramEmbed(cleanUrl) },
-    { name: 'Cobalt v2',     fn: () => tryCobalt(cleanUrl) },
-    { name: 'igram.world',   fn: () => tryIgram(cleanUrl) },
+    { name: 'Cobalt v2', fn: () => tryCobalt(cleanUrl) },
+    { name: 'igram.world', fn: () => tryIgram(cleanUrl) },
   ];
 
   const errors: string[] = [];
 
   for (const method of methods) {
     try {
-      const result = await method.fn();
+      const result: MediaResult = await method.fn();
       console.log(`[IG] ✅ ${method.name} succeeded`);
 
-      // Wait briefly for oEmbed metadata
-      await Promise.race([oembedPromise, new Promise(r => setTimeout(r, 1000))]);
+      // Wait briefly for oEmbed metadata (max 1s)
+      const meta = await Promise.race([
+        oembedPromise,
+        new Promise<{ title: string; thumbnail: string } | null>(r => setTimeout(() => r(null), 1000)),
+      ]);
 
       // Enrich with oEmbed if scraper got generic values
-      if (oembedMeta) {
+      if (meta) {
         if (!result.title || result.title === 'Instagram Media') {
-          result.title = oembedMeta.title || result.title;
+          result.title = meta.title || result.title;
         }
         if (!result.thumbnail) {
-          result.thumbnail = oembedMeta.thumbnail;
+          result.thumbnail = meta.thumbnail;
         }
       }
 
