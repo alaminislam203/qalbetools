@@ -24,11 +24,16 @@ function decodeUrl(url: string): string {
 // Method 1: Direct Instagram Scraping (HTML Meta Tags)
 // ============================
 async function tryDirectInstagram(url: string) {
-  const res = await fetch(url, {
+  // Normalize URL
+  const normalizedUrl = url.split('?')[0].replace(/\/$/, '') + '/';
+
+  const res = await fetch(normalizedUrl, {
     headers: {
       'User-Agent': UA,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
     },
     signal: AbortSignal.timeout(15000),
   });
@@ -38,49 +43,79 @@ async function tryDirectInstagram(url: string) {
 
   const formats: { quality: string; url: string; filesize: string }[] = [];
 
-  // ── Video Pattern ────────────────────────────────────────────────────
-  const videoMatch = html.match(/<meta[^>]+property="og:video"[^>]+content="([^"]+)"/i)
-    || html.match(/"video_url":"([^"]+)"/);
+  // ── Video Patterns ────────────────────────────────────────────────────
+  const videoMatches = [
+    html.match(/<meta[^>]+property="og:video"[^>]+content="([^"]+)"/i),
+    html.match(/"video_url":"([^"]+)"/),
+    html.match(/"playable_url":"([^"]+)"/),
+    html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:video"/i),
+  ];
   
-  if (videoMatch?.[1]) {
-    formats.push({ quality: 'HD', url: decodeUrl(videoMatch[1]), filesize: 'Unknown' });
+  for (const m of videoMatches) {
+    if (m?.[1]) {
+      const videoUrl = decodeUrl(m[1]);
+      if (videoUrl.includes('fbcdn.net') || videoUrl.includes('instagram.com')) {
+        formats.push({ quality: 'HD', url: videoUrl, filesize: 'Unknown' });
+        break; // Found a valid video URL
+      }
+    }
   }
 
-  // ── Image Pattern (if no video) ──────────────────────────────────────
+  // ── Image Pattern (if no video found) ──────────────────────────────────
   if (formats.length === 0) {
-    const imageMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
-      || html.match(/"display_url":"([^"]+)"/);
-    if (imageMatch?.[1]) {
-      formats.push({ quality: 'Image', url: decodeUrl(imageMatch[1]), filesize: 'Unknown' });
+    const imageMatches = [
+      html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i),
+      html.match(/"display_url":"([^"]+)"/),
+      html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i),
+    ];
+    for (const m of imageMatches) {
+      if (m?.[1]) {
+        const imageUrl = decodeUrl(m[1]);
+        formats.push({ quality: 'Image', url: imageUrl, filesize: 'Unknown' });
+        break;
+      }
     }
   }
 
   if (formats.length === 0) throw new Error('Direct IG: No media URLs found');
 
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-    || html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i);
+    || html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i)
+    || html.match(/"accessibility_caption":"([^"]+)"/);
   const title = titleMatch ? titleMatch[1].replace(/ • Instagram photos and videos$/, '').trim() : 'Instagram Media';
 
-  const thumbMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i);
+  const thumbMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
+    || html.match(/"thumbnail_src":"([^"]+)"/);
   const thumbnail = thumbMatch ? decodeUrl(thumbMatch[1]) : '';
 
   return { title, thumbnail, formats };
 }
 
 // ============================
-// Method 2: Savefrom.net API (Proxying)
+// Method 2: Savefrom.net API (Improved Parsing)
 // ============================
 async function trySavefrom(url: string) {
   const apiUrl = `https://worker.sf-tools.com/savefrom.php?sf_url=${encodeURIComponent(url)}&lang=en&app=1`;
 
   const res = await fetch(apiUrl, {
-    headers: { 'User-Agent': UA, 'Referer': 'https://en.savefrom.net/' },
+    headers: { 
+      'User-Agent': UA, 
+      'Referer': 'https://en.savefrom.net/',
+      'Origin': 'https://en.savefrom.net',
+      'Accept': 'application/json, text/plain, */*'
+    },
     signal: AbortSignal.timeout(15000),
   });
 
   if (!res.ok) throw new Error(`Savefrom returned ${res.status}`);
-  const data = await res.json() as any;
+  const text = await res.text();
+  
+  // Savefrom can sometimes return plain "ok" or other non-JSON text
+  if (!text.startsWith('{')) {
+    throw new Error('Savefrom: Non-JSON response received');
+  }
 
+  const data = JSON.parse(text);
   if (!data?.url || data.url.length === 0) throw new Error('Savefrom: No URLs found');
 
   const formats = data.url.map((item: any) => ({
@@ -90,20 +125,31 @@ async function trySavefrom(url: string) {
   }));
 
   return {
-    title: data.meta?.title || 'Instagram Video',
+    title: data.meta?.title || 'Instagram Media',
     thumbnail: data.meta?.thumb || '',
     formats,
   };
 }
 
 // ============================
-// Method 3: Cobalt.tools API
+// Method 3: Cobalt.tools API (Optimized)
 // ============================
 async function tryCobalt(url: string) {
   const res = await fetch('https://api.cobalt.tools/api/json', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': UA },
-    body: JSON.stringify({ url: url, vQuality: 'max' }),
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Accept': 'application/json', 
+      'User-Agent': UA,
+      'Origin': 'https://cobalt.tools',
+      'Referer': 'https://cobalt.tools/'
+    },
+    body: JSON.stringify({ 
+      url: url, 
+      vQuality: 'max', 
+      isAudioOnly: false,
+      isNoTTWatermark: true 
+    }),
     signal: AbortSignal.timeout(15000),
   });
 
@@ -111,15 +157,27 @@ async function tryCobalt(url: string) {
   const data = await res.json() as any;
 
   if (data.status === 'error') throw new Error('Cobalt: ' + data.text);
+  if (!data.url && !data.picker) throw new Error('Cobalt: No media found');
 
   const formats = [];
   if (data.url) {
     formats.push({ quality: 'HD', url: data.url, filesize: 'Unknown' });
   }
+  
+  // Instagram carousel support
+  if (data.picker) {
+    data.picker.forEach((item: any, idx: number) => {
+      if (item.url) {
+        formats.push({ quality: `Media ${idx + 1}`, url: item.url, filesize: 'Unknown' });
+      }
+    });
+  }
 
-  if (formats.length === 0) throw new Error('Cobalt: No formats');
-
-  return { title: 'Instagram Video', thumbnail: '', formats };
+  return { 
+    title: data.status === 'picker' ? 'Instagram Carousel' : 'Instagram Media', 
+    thumbnail: '', 
+    formats 
+  };
 }
 
 // ============================
@@ -173,7 +231,7 @@ export async function POST(req: Request) {
 
     if (!result) {
       return NextResponse.json(
-        { success: false, error: 'Search failed. The account might be private or post unavailable.', details: errors },
+        { success: false, error: 'All download methods failed. The account might be private or post unavailable.', details: errors },
         { status: 500, headers: CORS }
       );
     }
@@ -184,3 +242,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: 'Internal server error', details: err.message }, { status: 500, headers: CORS });
   }
 }
+
