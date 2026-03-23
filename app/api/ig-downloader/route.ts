@@ -6,14 +6,6 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// ── Rotating User-Agents ──────────────────────────────────────────────────────
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-];
-const UA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-
 // ── Interfaces ────────────────────────────────────────────────────────────────
 interface Format {
   quality: string;
@@ -47,14 +39,230 @@ function decodeIgUrl(raw: string): string {
   }
 }
 
+// ── Extract all media links from HTML ─────────────────────────────────────────
+function extractLinksFromHtml(html: string): Format[] {
+  const formats: Format[] = [];
+  const seen = new Set<string>();
+
+  // Generic CDN URL patterns (fbcdn, cdninstagram, etc.)
+  const cdnPatterns = [
+    /https?:\/\/[a-z0-9\-]+\.cdninstagram\.com\/[^\s"'<>]+/gi,
+    /https?:\/\/[a-z0-9\-]+\.fbcdn\.net\/[^\s"'<>]+/gi,
+  ];
+
+  for (const pattern of cdnPatterns) {
+    let m: RegExpExecArray | null;
+    while ((m = pattern.exec(html)) !== null) {
+      let u = m[0].replace(/['">\s]+$/, '').replace(/\\u0026/gi, '&');
+      u = decodeIgUrl(u);
+      if (seen.has(u)) continue;
+      seen.add(u);
+      const isVideo = u.includes('.mp4') || u.includes('video');
+      formats.push({
+        quality: isVideo ? `HD ${formats.length + 1}` : `Image ${formats.length + 1}`,
+        url: u,
+        filesize: 'Unknown',
+        ext: isVideo ? 'mp4' : 'jpg',
+      });
+    }
+  }
+
+  return formats;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
-// METHOD 1 ★ Instagram Embed Page (Proven working - GraphQL Embed)
+// METHOD 1 ★ SnapInsta.to  (reverse-engineered exact API)
+// POST https://snapinsta.to/action.php
+// ══════════════════════════════════════════════════════════════════════════════
+async function trySnapInsta(url: string): Promise<MediaResult> {
+  // Step 1: Load the homepage to get any cookies / token
+  const homeRes = await fetch('https://snapinsta.to/', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  const cookies = homeRes.headers.get('set-cookie') || '';
+  const cookieStr = cookies.split(',').map(c => c.split(';')[0].trim()).join('; ');
+  const homeHtml = await homeRes.text();
+
+  // Extract token from homepage HTML
+  const tokenMatch = homeHtml.match(/name="token"\s+value="([^"]+)"/i)
+    || homeHtml.match(/["']token["']\s*:\s*["']([^"']+)["']/i)
+    || homeHtml.match(/var\s+token\s*=\s*["']([^"']+)["']/i);
+  const token = tokenMatch ? tokenMatch[1] : '';
+
+  // Step 2: POST to action endpoint
+  const formData = new URLSearchParams();
+  formData.append('url', url);
+  formData.append('token', token);
+  formData.append('lang', 'en');
+  formData.append('button', '');
+
+  const res = await fetch('https://snapinsta.to/action.php', {
+    method: 'POST',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': '*/*',
+      'Origin': 'https://snapinsta.to',
+      'Referer': 'https://snapinsta.to/',
+      ...(cookieStr ? { 'Cookie': cookieStr } : {}),
+    },
+    body: formData.toString(),
+    signal: AbortSignal.timeout(20000),
+  });
+
+  if (!res.ok) throw new Error(`SnapInsta action.php returned ${res.status}`);
+
+  const contentType = res.headers.get('content-type') || '';
+  let formats: Format[] = [];
+  let title = 'Instagram Media';
+  let thumbnail = '';
+
+  if (contentType.includes('application/json')) {
+    // JSON response
+    const data = await res.json() as any;
+
+    // Possible JSON structures
+    if (data?.data) {
+      const html: string = typeof data.data === 'string' ? data.data : JSON.stringify(data.data);
+      formats = extractLinksFromHtml(html);
+
+      const thumbMatch = html.match(/src="(https?:\/\/[^"]+(?:fbcdn|cdninstagram)[^"]+)"/i);
+      thumbnail = thumbMatch ? decodeIgUrl(thumbMatch[1]) : '';
+    } else if (data?.url) {
+      formats.push({ quality: 'HD', url: data.url, filesize: 'Unknown', ext: 'mp4' });
+    } else if (Array.isArray(data?.medias)) {
+      data.medias.forEach((m: any, i: number) => {
+        if (m?.url) {
+          formats.push({
+            quality: m.quality || `HD ${i + 1}`,
+            url: m.url,
+            filesize: m.size || 'Unknown',
+            ext: m.extension || 'mp4',
+          });
+        }
+      });
+      thumbnail = data.thumbnail || data.thumb || '';
+      title = data.title || 'Instagram Media';
+    }
+  } else {
+    // HTML response — parse download links
+    const html = await res.text();
+    formats = extractLinksFromHtml(html);
+
+    const thumbMatch = html.match(/src="(https?:\/\/[^"]+(?:fbcdn|cdninstagram)[^"]+\.jpg[^"]*)"/i);
+    thumbnail = thumbMatch ? decodeIgUrl(thumbMatch[1]) : '';
+
+    const titleMatch = html.match(/<p[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)/i)
+      || html.match(/alt="([^"]{10,})"/i);
+    title = titleMatch ? titleMatch[1].trim() : 'Instagram Media';
+  }
+
+  if (formats.length === 0) throw new Error('SnapInsta: No download links found');
+  return { title, thumbnail, formats };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// METHOD 2 ★ SnapSave.app  (reverse-engineered exact API)
+// POST https://snapsave.app/action.php
+// ══════════════════════════════════════════════════════════════════════════════
+async function trySnapSave(url: string): Promise<MediaResult> {
+  // Step 1: GET homepage for cookies + token
+  const homeRes = await fetch('https://snapsave.app/', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  const cookies = homeRes.headers.get('set-cookie') || '';
+  const cookieStr = cookies.split(',').map(c => c.split(';')[0].trim()).join('; ');
+  const homeHtml = await homeRes.text();
+
+  const tokenMatch = homeHtml.match(/name="token"\s+value="([^"]+)"/i)
+    || homeHtml.match(/["']token["']\s*:\s*["']([^"']+)["']/i)
+    || homeHtml.match(/var\s+token\s*=\s*["']([^"']+)["']/i);
+  const token = tokenMatch ? tokenMatch[1] : '';
+
+  // Step 2: POST request  
+  const formData = new URLSearchParams();
+  formData.append('url', url);
+  if (token) formData.append('token', token);
+
+  const res = await fetch('https://snapsave.app/action.php', {
+    method: 'POST',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest',
+      'Accept': '*/*',
+      'Origin': 'https://snapsave.app',
+      'Referer': 'https://snapsave.app/',
+      ...(cookieStr ? { 'Cookie': cookieStr } : {}),
+    },
+    body: formData.toString(),
+    signal: AbortSignal.timeout(20000),
+  });
+
+  if (!res.ok) throw new Error(`SnapSave action.php returned ${res.status}`);
+
+  const contentType = res.headers.get('content-type') || '';
+  let formats: Format[] = [];
+  let title = 'Instagram Media';
+  let thumbnail = '';
+
+  if (contentType.includes('application/json')) {
+    const data = await res.json() as any;
+
+    if (typeof data?.data === 'string') {
+      // HTML inside JSON
+      const html: string = data.data;
+      formats = extractLinksFromHtml(html);
+
+      const thumbMatch = html.match(/src="(https?:\/\/[^"]+(?:fbcdn|cdninstagram)[^"]+\.jpg[^"]*)"/i);
+      thumbnail = thumbMatch ? decodeIgUrl(thumbMatch[1]) : '';
+    } else if (Array.isArray(data?.data?.medias)) {
+      data.data.medias.forEach((m: any, i: number) => {
+        if (m?.url) {
+          formats.push({
+            quality: m.quality || `HD ${i + 1}`,
+            url: m.url,
+            filesize: m.size || 'Unknown',
+            ext: m.extension || 'mp4',
+          });
+        }
+      });
+      thumbnail = data.data.thumbnail || '';
+      title = data.data.title || 'Instagram Media';
+    } else if (data?.url) {
+      formats.push({ quality: 'HD', url: data.url, filesize: 'Unknown', ext: 'mp4' });
+    }
+  } else {
+    const html = await res.text();
+    formats = extractLinksFromHtml(html);
+    const thumbMatch = html.match(/src="(https?:\/\/[^"]+(?:fbcdn|cdninstagram)[^"]+\.jpg[^"]*)"/i);
+    thumbnail = thumbMatch ? decodeIgUrl(thumbMatch[1]) : '';
+  }
+
+  if (formats.length === 0) throw new Error('SnapSave: No download links found');
+  return { title, thumbnail, formats };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// METHOD 3: Instagram oEmbed + Embed page combo
 // ══════════════════════════════════════════════════════════════════════════════
 async function tryInstagramEmbed(url: string): Promise<MediaResult> {
   const shortcode = extractShortcode(url);
-  if (!shortcode) throw new Error('Embed: Cannot extract shortcode from URL');
+  if (!shortcode) throw new Error('Embed: Cannot extract shortcode');
 
-  // Try both embed variants
   const embedUrls = [
     `https://www.instagram.com/p/${shortcode}/embed/captioned/`,
     `https://www.instagram.com/p/${shortcode}/embed/`,
@@ -66,25 +274,21 @@ async function tryInstagramEmbed(url: string): Promise<MediaResult> {
       const res = await fetch(embedUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'en-US,en;q=0.9',
-          'Cache-Control': 'no-cache',
         },
         signal: AbortSignal.timeout(20000),
       });
-      if (res.ok) {
-        html = await res.text();
-        break;
-      }
+      if (res.ok) { html = await res.text(); break; }
     } catch { continue; }
   }
 
   if (!html) throw new Error('Embed: All embed URLs failed');
 
   const formats: Format[] = [];
-  const seenUrls = new Set<string>();
+  const seen = new Set<string>();
 
-  // ── Extract Video URLs ───────────────────────────────────────────
+  // Video patterns
   const videoPatterns = [
     /"video_url"\s*:\s*"([^"]+)"/g,
     /"playable_url"\s*:\s*"([^"]+)"/g,
@@ -93,42 +297,34 @@ async function tryInstagramEmbed(url: string): Promise<MediaResult> {
     /content="([^"]+)"\s+property="og:video(?::url)?"/gi,
   ];
 
-  for (const pattern of videoPatterns) {
+  for (const p of videoPatterns) {
     let m: RegExpExecArray | null;
-    pattern.lastIndex = 0;
-    while ((m = pattern.exec(html)) !== null) {
-      const videoUrl = decodeIgUrl(m[1]);
-      if (
-        !seenUrls.has(videoUrl) &&
-        (videoUrl.includes('fbcdn.net') || videoUrl.includes('cdninstagram.com') || videoUrl.includes('.mp4'))
-      ) {
-        seenUrls.add(videoUrl);
-        formats.push({ quality: `HD ${formats.length + 1}`, url: videoUrl, filesize: 'Unknown', ext: 'mp4' });
+    p.lastIndex = 0;
+    while ((m = p.exec(html)) !== null) {
+      const v = decodeIgUrl(m[1]);
+      if (!seen.has(v) && (v.includes('fbcdn.net') || v.includes('cdninstagram.com'))) {
+        seen.add(v);
+        formats.push({ quality: `HD ${formats.length + 1}`, url: v, filesize: 'Unknown', ext: 'mp4' });
       }
     }
     if (formats.length > 0) break;
   }
 
-  // ── Extract Image URLs (if no video) ────────────────────────────
+  // Image fallback
   if (formats.length === 0) {
-    const imagePatterns = [
+    const imgPatterns = [
       /"display_url"\s*:\s*"([^"]+)"/g,
       /property="og:image"\s+content="([^"]+)"/gi,
       /content="([^"]+)"\s+property="og:image"/gi,
-      /"thumbnail_src"\s*:\s*"([^"]+)"/g,
     ];
-
-    for (const pattern of imagePatterns) {
+    for (const p of imgPatterns) {
       let m: RegExpExecArray | null;
-      pattern.lastIndex = 0;
-      while ((m = pattern.exec(html)) !== null) {
-        const imageUrl = decodeIgUrl(m[1]);
-        if (
-          !seenUrls.has(imageUrl) &&
-          (imageUrl.includes('fbcdn.net') || imageUrl.includes('cdninstagram.com'))
-        ) {
-          seenUrls.add(imageUrl);
-          formats.push({ quality: 'Image', url: imageUrl, filesize: 'Unknown', ext: 'jpg' });
+      p.lastIndex = 0;
+      while ((m = p.exec(html)) !== null) {
+        const v = decodeIgUrl(m[1]);
+        if (!seen.has(v) && (v.includes('fbcdn.net') || v.includes('cdninstagram.com'))) {
+          seen.add(v);
+          formats.push({ quality: 'Image', url: v, filesize: 'Unknown', ext: 'jpg' });
           break;
         }
       }
@@ -136,65 +332,24 @@ async function tryInstagramEmbed(url: string): Promise<MediaResult> {
     }
   }
 
-  // ── Extract carousel/sidecar items ──────────────────────────────
-  if (formats.length <= 1) {
-    const sidecarMatch = html.match(/"edge_sidecar_to_children"\s*:\s*\{[^}]+"edges"\s*:\s*(\[[^\]]+\])/);
-    if (sidecarMatch) {
-      try {
-        const edges = JSON.parse(sidecarMatch[1]);
-        edges.forEach((edge: any, i: number) => {
-          const node = edge.node;
-          if (node?.video_url && !seenUrls.has(node.video_url)) {
-            seenUrls.add(node.video_url);
-            formats.push({ quality: `Video ${i + 1}`, url: decodeIgUrl(node.video_url), filesize: 'Unknown', ext: 'mp4' });
-          } else if (node?.display_url && !seenUrls.has(node.display_url)) {
-            seenUrls.add(node.display_url);
-            formats.push({ quality: `Image ${i + 1}`, url: decodeIgUrl(node.display_url), filesize: 'Unknown', ext: 'jpg' });
-          }
-        });
-      } catch { /* ignore parse error */ }
-    }
-  }
+  if (formats.length === 0) throw new Error('Embed: No media found');
 
-  if (formats.length === 0) throw new Error('Embed: No media URLs found in embed page');
-
-  // ── Metadata ─────────────────────────────────────────────────────
-  const titleMatch =
-    html.match(/property="og:title"\s+content="([^"]+)"/i) ||
-    html.match(/content="([^"]+)"\s+property="og:title"/i) ||
-    html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  const titleMatch = html.match(/property="og:title"\s+content="([^"]+)"/i)
+    || html.match(/content="([^"]+)"\s+property="og:title"/i)
+    || html.match(/<title[^>]*>([^<]+)<\/title>/i);
   const title = titleMatch
     ? titleMatch[1].replace(/ on Instagram$/, '').replace(/ • Instagram.*$/, '').trim()
     : 'Instagram Media';
 
-  const thumbMatch =
-    html.match(/property="og:image"\s+content="([^"]+)"/i) ||
-    html.match(/content="([^"]+)"\s+property="og:image"/i) ||
-    html.match(/"thumbnail_src"\s*:\s*"([^"]+)"/);
+  const thumbMatch = html.match(/property="og:image"\s+content="([^"]+)"/i)
+    || html.match(/content="([^"]+)"\s+property="og:image"/i);
   const thumbnail = thumbMatch ? decodeIgUrl(thumbMatch[1]) : '';
 
   return { title, thumbnail, formats };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// METHOD 2: Instagram oEmbed (Official - metadata enrichment)
-// ══════════════════════════════════════════════════════════════════════════════
-async function tryOEmbed(url: string): Promise<{ title: string; thumbnail: string }> {
-  const apiUrl = `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(url)}&maxwidth=640`;
-  const res = await fetch(apiUrl, {
-    headers: { 'User-Agent': UA, 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw new Error(`oEmbed ${res.status}`);
-  const data = await res.json() as any;
-  return {
-    title: data.title || data.author_name || '',
-    thumbnail: data.thumbnail_url || '',
-  };
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// METHOD 3: Cobalt v2 (Multiple instances fallback)
+// METHOD 4: Cobalt v2 (Multiple instances)
 // ══════════════════════════════════════════════════════════════════════════════
 async function tryCobalt(url: string): Promise<MediaResult> {
   const instances = [
@@ -202,89 +357,30 @@ async function tryCobalt(url: string): Promise<MediaResult> {
     'https://co.wuk.sh',
     'https://api.cobalt.tools',
   ];
-
   for (const base of instances) {
     try {
       const res = await fetch(`${base}/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'User-Agent': UA,
-        },
-        body: JSON.stringify({ url, videoQuality: 'max', filenameStyle: 'pretty' }),
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ url, videoQuality: 'max' }),
         signal: AbortSignal.timeout(12000),
       });
-
       if (!res.ok) continue;
       const data = await res.json() as any;
-      if (data.status === 'error' || (!data.url && !data.picker)) continue;
+      if (!data.url && !data.picker) continue;
 
       const formats: Format[] = [];
-      if (data.url) {
-        formats.push({ quality: 'HD', url: data.url, filesize: 'Unknown', ext: 'mp4' });
-      }
+      if (data.url) formats.push({ quality: 'HD', url: data.url, filesize: 'Unknown', ext: 'mp4' });
       if (data.picker) {
         (data.picker as any[]).forEach((item, i) => {
-          if (item.url) {
-            formats.push({
-              quality: `Media ${i + 1}`,
-              url: item.url,
-              filesize: 'Unknown',
-              ext: item.type === 'video' ? 'mp4' : 'jpg',
-            });
-          }
+          if (item.url) formats.push({ quality: `Media ${i + 1}`, url: item.url, filesize: 'Unknown', ext: item.type === 'video' ? 'mp4' : 'jpg' });
         });
       }
       if (formats.length === 0) continue;
-      console.log(`[IG] ✅ Cobalt succeeded via ${base}`);
       return { title: 'Instagram Media', thumbnail: '', formats };
     } catch { continue; }
   }
   throw new Error('All Cobalt instances failed');
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// METHOD 4: igram.world (lightweight third-party)
-// ══════════════════════════════════════════════════════════════════════════════
-async function tryIgram(url: string): Promise<MediaResult> {
-  const res = await fetch('https://igram.world/api/convert', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-      'User-Agent': UA,
-      'Referer': 'https://igram.world/',
-      'Origin': 'https://igram.world',
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-    body: `link=${encodeURIComponent(url)}&token=`,
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!res.ok) throw new Error(`igram returned ${res.status}`);
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) throw new Error('igram: Non-JSON response');
-
-  const data = await res.json() as any;
-  if (!data || (!Array.isArray(data) && !data.url)) throw new Error('igram: No data');
-
-  const formats: Format[] = [];
-  const items = Array.isArray(data) ? data : [data];
-  items.forEach((item: any, i: number) => {
-    const mediaUrl = item.url || item.download_url || item.src;
-    if (mediaUrl) {
-      const isVideo = (item.type || '').includes('video') || mediaUrl.includes('.mp4');
-      formats.push({
-        quality: isVideo ? `HD ${i + 1}` : `Image ${i + 1}`,
-        url: mediaUrl,
-        filesize: item.size ? `${(item.size / 1024 / 1024).toFixed(2)} MB` : 'Unknown',
-        ext: isVideo ? 'mp4' : 'jpg',
-      });
-    }
-  });
-
-  if (formats.length === 0) throw new Error('igram: No formats extracted');
-  return { title: 'Instagram Media', thumbnail: '', formats };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -293,35 +389,34 @@ async function tryIgram(url: string): Promise<MediaResult> {
 async function downloadInstagram(rawUrl: string): Promise<MediaResult> {
   const cleanUrl = rawUrl.split('?')[0].replace(/\/$/, '');
 
-  const oembedPromise = tryOEmbed(cleanUrl).catch(() => null);
+  // oEmbed for metadata enrichment (background)
+  let oembedMeta: { title: string; thumbnail: string } | null = null;
+  const oembedPromise = fetch(
+    `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(cleanUrl)}&maxwidth=640`,
+    { headers: { 'User-Agent': 'Mozilla/5.0 Chrome/123.0.0.0' }, signal: AbortSignal.timeout(8000) }
+  ).then(r => r.json()).then((d: any) => {
+    oembedMeta = { title: d.title || d.author_name || '', thumbnail: d.thumbnail_url || '' };
+  }).catch(() => {});
 
-  const methods: { name: string; fn: () => Promise<MediaResult> }[] = [
-    { name: 'GraphQL Embed', fn: () => tryInstagramEmbed(cleanUrl) },
-    { name: 'Cobalt v2', fn: () => tryCobalt(cleanUrl) },
-    { name: 'igram.world', fn: () => tryIgram(cleanUrl) },
+  const methods = [
+    { name: 'SnapInsta',      fn: () => trySnapInsta(cleanUrl) },
+    { name: 'SnapSave',       fn: () => trySnapSave(cleanUrl) },
+    { name: 'GraphQL Embed',  fn: () => tryInstagramEmbed(cleanUrl) },
+    { name: 'Cobalt v2',      fn: () => tryCobalt(cleanUrl) },
   ];
 
   const errors: string[] = [];
 
   for (const method of methods) {
     try {
-      const result: MediaResult = await method.fn();
+      const result = await method.fn();
       console.log(`[IG] ✅ ${method.name} succeeded`);
 
-      // Wait briefly for oEmbed metadata (max 1s)
-      const meta = await Promise.race([
-        oembedPromise,
-        new Promise<{ title: string; thumbnail: string } | null>(r => setTimeout(() => r(null), 1000)),
-      ]);
-
-      // Enrich with oEmbed if scraper got generic values
-      if (meta) {
-        if (!result.title || result.title === 'Instagram Media') {
-          result.title = meta.title || result.title;
-        }
-        if (!result.thumbnail) {
-          result.thumbnail = meta.thumbnail;
-        }
+      // Enrich metadata
+      await Promise.race([oembedPromise, new Promise(r => setTimeout(r, 800))]);
+      if (oembedMeta) {
+        if (!result.title || result.title === 'Instagram Media') result.title = (oembedMeta as any).title || result.title;
+        if (!result.thumbnail) result.thumbnail = (oembedMeta as any).thumbnail;
       }
 
       return result;
@@ -361,7 +456,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Could not download this media. The account may be private or the post unavailable.',
+        error: 'Could not download. The account may be private or the post unavailable.',
         details: err.message,
       },
       { status: 500, headers: CORS }
