@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import ytdl from '@distube/ytdl-core';
+import { YtDlp } from 'ytdlp-nodejs';
 
-export const maxDuration = 60; // Vercel Timeout Fix
+export const maxDuration = 60; // Vercel Timeout Fix (60 Seconds)
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
 };
 
 // ── ১. CORS প্রিফ্লাইট ─────────────────────────────────────────────────────────
@@ -14,103 +14,129 @@ export async function OPTIONS() { return new NextResponse(null, { status: 200, h
 
 // ── ২. GET: Proxy Downloader ───────────────────────────────────────────────────
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const proxyUrl = searchParams.get('proxyUrl');
-  const filename = searchParams.get('filename') || 'QalbeTalks_YT';
-  const ext = searchParams.get('ext') || 'mp4';
-  
-  if (!proxyUrl) return NextResponse.json({ error: 'Proxy URL missing' }, { status: 400, headers: CORS });
-  
-  try {
-    const upstream = await fetch(proxyUrl, { signal: AbortSignal.timeout(50000) });
-    return new NextResponse(upstream.body, { 
-        status: 200, 
-        headers: { 
-            ...CORS, 
-            'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream', 
-            'Content-Disposition': `attachment; filename="${filename}.${ext}"` 
-        } 
-    });
-  } catch (error) { return NextResponse.json({ error: 'Proxy failed' }, { status: 500, headers: CORS }); }
+    const { searchParams } = new URL(req.url);
+    const proxyUrl = searchParams.get('proxyUrl');
+    const filename = searchParams.get('filename') || 'QalbeTalks_YT';
+    const ext = searchParams.get('ext') || 'mp4';
+
+    if (!proxyUrl) return NextResponse.json({ error: 'Proxy URL missing' }, { status: 400, headers: CORS });
+
+    try {
+        const upstream = await fetch(proxyUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36' },
+            signal: AbortSignal.timeout(50000)
+        });
+        return new NextResponse(upstream.body, {
+            status: 200,
+            headers: {
+                ...CORS,
+                'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream',
+                'Content-Disposition': `attachment; filename="${filename}.${ext}"`
+            }
+        });
+    } catch (error) { return NextResponse.json({ error: 'Proxy failed' }, { status: 500, headers: CORS }); }
 }
 
-// ── ৩. POST: YouTube Fetcher (Smart Cleaner + Fallback) ──────────────────────
+// ── ৩. POST: YouTube Fetcher (ytdlp-nodejs + Fallbacks) ───────────────────────
 export async function POST(req: Request) {
-  try {
-    const body = await req.json().catch(() => ({}));
-    const { url } = body as { url?: string };
-
-    if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
-      return NextResponse.json({ success: false, error: 'Valid YouTube URL required' }, { status: 400, headers: CORS });
-    }
-
-    // 🔥 জাদুকরী লজিক: প্লেলিস্ট লিঙ্ক থেকে শুধু আসল ভিডিও লিঙ্ক বের করে আনা
-    let cleanUrl = url;
     try {
-        const urlObj = new URL(url);
-        const vParams = urlObj.searchParams.get('v');
-        if (vParams) {
-            cleanUrl = `https://www.youtube.com/watch?v=${vParams}`;
-        } else {
-            cleanUrl = url.split('?')[0]; // youtu.be শর্ট লিঙ্কের জন্য
+        const body = await req.json().catch(() => ({}));
+        const { url } = body as { url?: string };
+
+        if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
+            return NextResponse.json({ success: false, error: 'Valid YouTube URL required' }, { status: 400, headers: CORS });
         }
-    } catch(e) {}
 
-    let formats: any[] = [];
-    let title = 'YouTube Video';
-    let thumbnail = 'https://images.unsplash.com/photo-1611162618758-6a4fd40becd8?q=80&w=600&auto=format&fit=crop';
-
-    const fetchTimeout = (promise: any, ms: number) => {
-        return Promise.race([
-            promise,
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout exceeded')), ms))
-        ]);
-    };
-
-    // === ইঞ্জিন ১: @distube/ytdl-core ===
-    try {
-        console.log("YT Engine 1: Fetching...", cleanUrl);
-        const info: any = await fetchTimeout(ytdl.getInfo(cleanUrl), 15000);
-        
-        title = info.videoDetails.title || title;
-        const thumbs = info.videoDetails.thumbnails;
-        if (thumbs && thumbs.length > 0) thumbnail = thumbs[thumbs.length - 1].url;
-
-        // ভিডিও লিঙ্ক
-        const videoAudioFormats = ytdl.filterFormats(info.formats, 'videoandaudio');
-        videoAudioFormats.forEach(f => formats.push({ quality: (f.qualityLabel || 'HD') + ' Video', ext: 'mp4', url: f.url }));
-
-        // অডিও লিঙ্ক
-        const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
-        if (audioFormats.length > 0) formats.push({ quality: 'High Quality Audio', ext: 'mp3', url: audioFormats[0].url });
-        
-    } catch (e: any) { console.log("YT Engine 1 Failed (Vercel IP might be blocked):", e.message); }
-
-    // === ইঞ্জিন ২: VKR API (Fallback - যদি Vercel IP ব্লক খায়) ===
-    if (formats.length === 0) {
+        // প্লেলিস্ট লিঙ্ক থেকে শুধু আসল ভিডিও লিঙ্ক বের করা
+        let cleanUrl = url;
         try {
-            console.log("YT Engine 2: Trying Fallback API...");
-            const res: any = await fetchTimeout(fetch(`https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(cleanUrl)}`), 15000);
-            const json2 = await res.json();
-            
-            if (json2.data && json2.data.downloads) {
-                title = json2.data.title || title;
-                thumbnail = json2.data.thumbnail || thumbnail;
-                json2.data.downloads.forEach((dl: any) => {
-                    const isAudio = dl.url.includes('.mp3') || dl.quality?.toLowerCase().includes('audio') || dl.ext === 'mp3';
-                    formats.push({ quality: dl.quality || (isAudio ? 'Audio MP3' : 'Video MP4'), ext: isAudio ? 'mp3' : 'mp4', url: dl.url });
-                });
+            const urlObj = new URL(url);
+            const vParams = urlObj.searchParams.get('v');
+            if (vParams) cleanUrl = `https://www.youtube.com/watch?v=${vParams}`;
+            else cleanUrl = url.split('?')[0];
+        } catch (e) { }
+
+        let formats: any[] = [];
+        let title = 'YouTube Video';
+        let thumbnail = 'https://images.unsplash.com/photo-1611162618758-6a4fd40becd8?q=80&w=600&auto=format&fit=crop';
+
+        // === ইঞ্জিন ১: ytdlp-nodejs (The King) ===
+        try {
+            console.log("YT Engine 1: Trying ytdlp-nodejs...");
+            const ytdlp = new YtDlp();
+            const info = await ytdlp.getInfoAsync(cleanUrl);
+
+            if (info) {
+                title = info.title || title;
+
+                if (info._type === 'video') {
+                    thumbnail = info.thumbnail || thumbnail;
+
+                    if (info.formats && Array.isArray(info.formats)) {
+                        info.formats.forEach((f: any) => {
+                            const hasVideo = f.vcodec && f.vcodec !== 'none';
+                            const hasAudio = f.acodec && f.acodec !== 'none';
+                            const ext = f.ext || 'mp4';
+
+                            // ভিডিও + অডিও একসাথে আছে এমন লিঙ্ক
+                            if (hasVideo && hasAudio) {
+                                formats.push({ quality: (f.format_note || f.resolution || 'HD') + ' Video', ext, url: f.url });
+                            }
+                            // শুধুমাত্র অডিও লিঙ্ক
+                            else if (hasAudio && !hasVideo) {
+                                formats.push({ quality: (f.format_note || 'High') + ' Quality Audio', ext: 'mp3', url: f.url });
+                            }
+                        });
+                    }
+                } else if (info._type === 'playlist' && info.entries && info.entries.length > 0) {
+                    // Fallback to first video thumbnail if it's a playlist
+                    thumbnail = info.entries[0].thumbnail || thumbnail;
+                }
             }
-        } catch (e: any) { console.log("YT Engine 2 Failed:", e.message); }
+        } catch (e: any) { console.log("YT Engine 1 (ytdlp) Failed:", e.message); }
+
+        // === ইঞ্জিন ২: VKR API (Fallback) ===
+        if (formats.length === 0) {
+            try {
+                console.log("YT Engine 2: Trying VKR Fallback...");
+                const res = await fetch(`https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(cleanUrl)}`);
+                const json2 = await res.json();
+
+                if (json2.data && json2.data.downloads) {
+                    title = json2.data.title || title;
+                    thumbnail = json2.data.thumbnail || thumbnail;
+                    json2.data.downloads.forEach((dl: any) => {
+                        const isAudio = dl.url.includes('.mp3') || dl.quality?.toLowerCase().includes('audio') || dl.ext === 'mp3';
+                        formats.push({ quality: dl.quality || (isAudio ? 'Audio MP3' : 'Video MP4'), ext: isAudio ? 'mp3' : 'mp4', url: dl.url });
+                    });
+                }
+            } catch (e: any) { console.log("YT Engine 2 Failed:", e.message); }
+        }
+
+        // === ইঞ্জিন ৩: BK9 API (Ultimate Backup) ===
+        if (formats.length === 0) {
+            try {
+                console.log("YT Engine 3: Trying BK9 Fallback...");
+                const res = await fetch(`https://bk9.fun/download/youtube?url=${encodeURIComponent(cleanUrl)}`);
+                const json3 = await res.json();
+
+                if (json3 && json3.status && json3.BK9) {
+                    title = json3.BK9.title || title;
+                    thumbnail = json3.BK9.thumb || thumbnail;
+                    if (json3.BK9.vid) formats.push({ quality: 'HD Video MP4', ext: 'mp4', url: json3.BK9.vid });
+                    if (json3.BK9.aud) formats.push({ quality: 'Audio MP3', ext: 'mp3', url: json3.BK9.aud });
+                }
+            } catch (e: any) { console.log("YT Engine 3 Failed:", e.message); }
+        }
+
+        if (formats.length === 0) throw new Error('Could not fetch YouTube data. The video might be restricted.');
+
+        // ডুপ্লিকেট লিঙ্ক ফিল্টার করা
+        const uniqueFormats = Array.from(new Map(formats.map(item => [item.url, item])).values());
+
+        return NextResponse.json({ success: true, data: { title, thumbnail, formats: uniqueFormats } }, { status: 200, headers: CORS });
+
+    } catch (err: any) {
+        return NextResponse.json({ success: false, error: 'ভিডিও পাওয়া যায়নি। লিংকটি চেক করুন।', details: err.message }, { status: 500, headers: CORS });
     }
-
-    if (formats.length === 0) throw new Error('All scraping engines failed. The video might be restricted or age-gated.');
-
-    const uniqueFormats = Array.from(new Map(formats.map(item => [item.url, item])).values());
-
-    return NextResponse.json({ success: true, data: { title, thumbnail, formats: uniqueFormats } }, { status: 200, headers: CORS });
-
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: 'ভিডিও পাওয়া যায়নি। লিংকটি চেক করুন।', details: err.message }, { status: 500, headers: CORS });
-  }
 }
