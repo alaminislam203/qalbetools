@@ -223,7 +223,7 @@ function WhyCard({
    MAIN PAGE
 ───────────────────────────────────────── */
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram' | 'tiktok'>('mockup');
+  const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram' | 'tiktok' | 'youtube'>('mockup');
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -443,6 +443,7 @@ export default function Home() {
                   { id: 'facebook', label: 'Facebook API', activeClass: 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-lg' },
                   { id: 'instagram', label: 'Instagram API', activeClass: 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-lg' },
                   { id: 'tiktok', label: 'TikTok API', activeClass: 'bg-white dark:bg-rose-600 text-rose-600 dark:text-white shadow-lg' },
+                  { id: 'youtube', label: 'YouTube API', activeClass: 'bg-white dark:bg-red-600 text-red-600 dark:text-white shadow-lg' },
                 ] as const
               ).map((tab) => (
                 <button
@@ -676,6 +677,65 @@ const { data } = await response.json();
               </div>
             </div>
           )}
+
+          {/* ── YouTube Tab ── */}
+          {activeTab === 'youtube' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-500 dark:from-red-400 dark:to-orange-400">
+                    5. YouTube Video Downloader API
+                  </h3>
+                  <span className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-red-200 dark:border-red-800">
+                    High Stability
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                  <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                    /api/youtube-downloader
+                  </code>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-base mb-6">
+                  Experience lightning-fast <strong className="text-slate-800 dark:text-white">YouTube & Shorts</strong> downloads. Our engine uses a 3-tier fallback system (AB, VKR, and BK9) to ensure 99.9% uptime for both Video (MP4) and Audio (MP3).
+                </p>
+
+                <CodeBlock title="request-body.json" code={`{\n  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"\n}`} />
+
+                <div className="mt-8">
+                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Universal Proxy Downloader
+                  </h4>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">GET</span>
+                    <code className="text-sm font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 break-all">
+                      /api/youtube-downloader?proxyUrl=URL&amp;filename=NAME&amp;ext=mp4
+                    </code>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                    Fetch YouTube streams directly through our proxy to bypass geographical restrictions and CORS issues.
+                  </p>
+                </div>
+
+                <div className="mt-10">
+                  <CodeBlock
+                    title="youtube-fetch.js"
+                    code={`const response = await fetch('/api/youtube-downloader', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ url: 'YOUTUBE_URL' })
+});
+
+const { data } = await response.json();
+// data contains: title, thumbnail, and unique formats array`}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </section>
 
