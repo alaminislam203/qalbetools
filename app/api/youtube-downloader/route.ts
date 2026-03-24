@@ -9,6 +9,12 @@ const CORS = {
     'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+};
+
 // ── ১. CORS প্রিফ্লাইট ─────────────────────────────────────────────────────────
 export async function OPTIONS() { return new NextResponse(null, { status: 200, headers: CORS }); }
 
@@ -113,7 +119,7 @@ export async function POST(req: Request) {
         if (formats.length === 0) {
             try {
                 console.log("YT Engine 2: Trying VKR Fallback...");
-                const res = await fetch(`https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(cleanUrl)}`);
+                const res = await fetch(`https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(cleanUrl)}`, { headers: HEADERS });
                 const json2 = await res.json();
 
                 if (json2.data && json2.data.downloads) {
@@ -136,7 +142,7 @@ export async function POST(req: Request) {
         if (formats.length === 0) {
             try {
                 console.log("YT Engine 3: Trying BK9 Fallback...");
-                const res = await fetch(`https://bk9.fun/download/youtube?url=${encodeURIComponent(url)}`); // Use original URL for BK9
+                const res = await fetch(`https://bk9.fun/download/youtube?url=${encodeURIComponent(url)}`, { headers: HEADERS }); // Use original URL for BK9
                 const json3 = await res.json();
 
                 if (json3 && json3.status && json3.BK9) {
@@ -150,6 +156,30 @@ export async function POST(req: Request) {
             } catch (e: any) { 
                 console.log("YT Engine 3 Failed:", e.message); 
                 errorDetails.push(`Engine 3: ${e.message}`);
+            }
+        }
+
+        // === ইঞ্জিন ৪: GoAPI (Final Fallback) ===
+        if (formats.length === 0) {
+            try {
+                console.log("YT Engine 4: Trying GoAPI Fallback...");
+                const res = await fetch(`https://api.goapi.xyz/google/youtube?url=${encodeURIComponent(cleanUrl)}`, { headers: HEADERS });
+                const json4 = await res.json();
+
+                if (json4 && json4.data) {
+                    title = json4.data.title || title;
+                    thumbnail = json4.data.thumbnail || thumbnail;
+                    if (json4.data.formats) {
+                        json4.data.formats.forEach((f: any) => {
+                            formats.push({ quality: f.quality || 'HD Video', ext: f.ext || 'mp4', url: f.url });
+                        });
+                    }
+                } else {
+                    errorDetails.push("Engine 4: GoAPI missing data");
+                }
+            } catch (e: any) {
+                console.log("YT Engine 4 Failed:", e.message);
+                errorDetails.push(`Engine 4: ${e.message}`);
             }
         }
 
