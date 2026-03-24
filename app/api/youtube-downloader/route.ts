@@ -208,7 +208,6 @@ export async function POST(req: Request) {
     if (formats.length === 0 && videoId) {
       try {
         console.log('Engine 4: yt1s...');
-        // Step 1: Analyse
         const analyseRes = await fetchSafe('https://yt1s.com/api/ajaxSearch/index', {
           method: 'POST',
           headers: {
@@ -229,7 +228,6 @@ export async function POST(req: Request) {
             const vid = analyseData.vid;
             const kval = analyseData.kc || Object.keys(analyseData.links?.mp4 || {})[0] || '18';
 
-            // Step 2: Convert
             const convertRes = await fetchSafe('https://yt1s.com/api/ajaxConvert/convert', {
               method: 'POST',
               headers: {
@@ -249,7 +247,6 @@ export async function POST(req: Request) {
               }
             }
 
-            // Also try mp3
             const mp3key = Object.keys(analyseData.links?.mp3 || {})[0];
             if (mp3key) {
               const mp3Res = await fetchSafe('https://yt1s.com/api/ajaxConvert/convert', {
@@ -303,7 +300,6 @@ export async function POST(req: Request) {
           if (d.status === 'ok' && d.vid) {
             title = d.title || title;
             thumbnail = d.thumbnail || thumbnail;
-            // Get first available mp4 link key
             const mp4Links = d.links?.mp4 || {};
             const mp4Key = Object.keys(mp4Links)[0];
             if (mp4Key) {
