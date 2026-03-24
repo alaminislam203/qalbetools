@@ -49,16 +49,27 @@ export async function POST(req: Request) {
 
         // প্লেলিস্ট লিঙ্ক থেকে শুধু আসল ভিডিও লিঙ্ক বের করা
         let cleanUrl = url;
+        let videoId = '';
         try {
             const urlObj = new URL(url);
-            const vParams = urlObj.searchParams.get('v');
-            if (vParams) cleanUrl = `https://www.youtube.com/watch?v=${vParams}`;
-            else cleanUrl = url.split('?')[0];
+            if (url.includes('youtu.be/')) {
+                videoId = urlObj.pathname.substring(1);
+                cleanUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            } else {
+                const v = urlObj.searchParams.get('v');
+                if (v) {
+                    videoId = v;
+                    cleanUrl = `https://www.youtube.com/watch?v=${v}`;
+                } else {
+                    cleanUrl = url.split('?')[0];
+                }
+            }
         } catch (e) { }
 
         let formats: any[] = [];
         let title = 'YouTube Video';
         let thumbnail = 'https://images.unsplash.com/photo-1611162618758-6a4fd40becd8?q=80&w=600&auto=format&fit=crop';
+        let errorDetails: string[] = [];
 
         // === ইঞ্জিন ১: ytdlp-nodejs (The King) ===
         try {
@@ -93,7 +104,10 @@ export async function POST(req: Request) {
                     thumbnail = info.entries[0].thumbnail || thumbnail;
                 }
             }
-        } catch (e: any) { console.log("YT Engine 1 (ytdlp) Failed:", e.message); }
+        } catch (e: any) { 
+            console.log("YT Engine 1 (ytdlp) Failed:", e.message); 
+            errorDetails.push(`Engine 1: ${e.message}`);
+        }
 
         // === ইঞ্জিন ২: VKR API (Fallback) ===
         if (formats.length === 0) {
@@ -109,15 +123,20 @@ export async function POST(req: Request) {
                         const isAudio = dl.url.includes('.mp3') || dl.quality?.toLowerCase().includes('audio') || dl.ext === 'mp3';
                         formats.push({ quality: dl.quality || (isAudio ? 'Audio MP3' : 'Video MP4'), ext: isAudio ? 'mp3' : 'mp4', url: dl.url });
                     });
+                } else {
+                    errorDetails.push("Engine 2: No download data found");
                 }
-            } catch (e: any) { console.log("YT Engine 2 Failed:", e.message); }
+            } catch (e: any) { 
+                console.log("YT Engine 2 Failed:", e.message); 
+                errorDetails.push(`Engine 2: ${e.message}`);
+            }
         }
 
         // === ইঞ্জিন ৩: BK9 API (Ultimate Backup) ===
         if (formats.length === 0) {
             try {
                 console.log("YT Engine 3: Trying BK9 Fallback...");
-                const res = await fetch(`https://bk9.fun/download/youtube?url=${encodeURIComponent(cleanUrl)}`);
+                const res = await fetch(`https://bk9.fun/download/youtube?url=${encodeURIComponent(url)}`); // Use original URL for BK9
                 const json3 = await res.json();
 
                 if (json3 && json3.status && json3.BK9) {
@@ -125,11 +144,18 @@ export async function POST(req: Request) {
                     thumbnail = json3.BK9.thumb || thumbnail;
                     if (json3.BK9.vid) formats.push({ quality: 'HD Video MP4', ext: 'mp4', url: json3.BK9.vid });
                     if (json3.BK9.aud) formats.push({ quality: 'Audio MP3', ext: 'mp3', url: json3.BK9.aud });
+                } else {
+                    errorDetails.push("Engine 3: BK9 status failed or data missing");
                 }
-            } catch (e: any) { console.log("YT Engine 3 Failed:", e.message); }
+            } catch (e: any) { 
+                console.log("YT Engine 3 Failed:", e.message); 
+                errorDetails.push(`Engine 3: ${e.message}`);
+            }
         }
 
-        if (formats.length === 0) throw new Error('Could not fetch YouTube data. The video might be restricted.');
+        if (formats.length === 0) {
+            throw new Error(`Could not fetch data from any engine. ${errorDetails.join(' | ')}`);
+        }
 
         // ডুপ্লিকেট লিঙ্ক ফিল্টার করা
         const uniqueFormats = Array.from(new Map(formats.map(item => [item.url, item])).values());
