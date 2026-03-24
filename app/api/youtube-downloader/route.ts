@@ -8,10 +8,11 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const UA_BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36';
+const UA_ANDROID = 'com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip';
 
 // ── Timeout-safe fetch ────────────────────────────────────────────────────────
-async function fetchSafe(url: string, init: RequestInit = {}, ms = 12000): Promise<Response> {
+async function fetchSafe(url: string, init: RequestInit = {}, ms = 15000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
@@ -40,7 +41,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Proxy URL missing' }, { status: 400, headers: CORS });
 
   try {
-    const upstream = await fetchSafe(proxyUrl, { headers: { 'User-Agent': UA } }, 50000);
+    const upstream = await fetchSafe(proxyUrl, { headers: { 'User-Agent': UA_BROWSER } }, 50000);
     return new NextResponse(upstream.body, {
       status: 200,
       headers: {
@@ -52,6 +53,41 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.json({ error: 'Proxy failed' }, { status: 500, headers: CORS });
   }
+}
+
+// ── InnerTube: YouTube-এর নিজস্ব Internal API ────────────────────────────────
+async function fetchInnerTube(videoId: string, clientName: string, clientVersion: string, extraContext: Record<string, unknown> = {}) {
+  const INNERTUBE_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+  const r = await fetchSafe(
+    `https://www.youtube.com/youtubei/v1/player?key=${INNERTUBE_KEY}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': clientName === 'ANDROID' ? UA_ANDROID : UA_BROWSER,
+        'X-YouTube-Client-Name': clientName === 'ANDROID' ? '3' : '1',
+        'X-YouTube-Client-Version': clientVersion,
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Origin': 'https://www.youtube.com',
+      },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName,
+            clientVersion,
+            hl: 'en',
+            gl: 'US',
+            ...extraContext,
+          },
+        },
+        params: 'CgIQBg==',
+      }),
+    },
+    18000
+  );
+  if (!r.ok) throw new Error(`InnerTube HTTP ${r.status}`);
+  return r.json();
 }
 
 // ── ৩. POST: YouTube Fetcher ──────────────────────────────────────────────────
@@ -73,7 +109,7 @@ export async function POST(req: Request) {
     try {
       const urlObj = new URL(url);
       if (url.includes('youtu.be/')) {
-        videoId = urlObj.pathname.split('/')[1] || '';
+        videoId = urlObj.pathname.split('/')[1]?.split('?')[0] || '';
         cleanUrl = `https://www.youtube.com/watch?v=${videoId}`;
       } else {
         const v = urlObj.searchParams.get('v');
@@ -84,18 +120,23 @@ export async function POST(req: Request) {
       }
     } catch { /* ignore */ }
 
+    if (!videoId) {
+      return NextResponse.json(
+        { success: false, error: 'YouTube Video ID বের করা সম্ভব হয়নি।' },
+        { status: 400, headers: CORS }
+      );
+    }
+
     let formats: { quality: string; ext: string; url: string }[] = [];
     let title = 'YouTube Video';
-    let thumbnail = videoId
-      ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-      : '';
+    let thumbnail = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
     const errors: string[] = [];
 
     // ── Metadata: YouTube oEmbed ──────────────────────────────────────────────
     try {
       const r = await fetchSafe(
         `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`,
-        { headers: { 'User-Agent': UA } },
+        { headers: { 'User-Agent': UA_BROWSER } },
         8000
       );
       if (r.ok) {
@@ -107,50 +148,146 @@ export async function POST(req: Request) {
       errors.push(`oEmbed: ${e.message}`);
     }
 
-    // ── ইঞ্জিন ১: VKR API ────────────────────────────────────────────────────
+    // ── ইঞ্জিন ১: YouTube InnerTube — ANDROID Client ─────────────────────────
+    // YouTube-এর নিজস্ব API, Vercel IP block করতে পারে না
     try {
-      console.log('Engine 1: VKR...');
-      const r = await fetchSafe(
-        `https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(cleanUrl)}`,
-        { headers: { 'User-Agent': UA, 'Accept': 'application/json' } },
-        12000
-      );
-      if (r.ok) {
-        const d = await r.json();
-        if (d.data?.downloads && Array.isArray(d.data.downloads) && d.data.downloads.length > 0) {
-          title = d.data.title || title;
-          thumbnail = d.data.thumbnail || thumbnail;
-          d.data.downloads.forEach((dl: any) => {
-            if (!dl.url) return;
-            const isAudio =
-              dl.url.includes('.mp3') ||
-              dl.quality?.toLowerCase().includes('audio') ||
-              dl.ext === 'mp3';
-            formats.push({
-              quality: dl.quality || (isAudio ? 'Audio MP3' : 'Video MP4'),
-              ext: isAudio ? 'mp3' : 'mp4',
-              url: dl.url,
-            });
-          });
-          console.log(`Engine 1 (VKR): ${formats.length} formats found`);
-        } else {
-          errors.push('Engine 1 (VKR): no downloads in response');
+      console.log('Engine 1: InnerTube ANDROID...');
+      const data = await fetchInnerTube(videoId, 'ANDROID', '17.31.35', { androidSdkVersion: 30 });
+
+      if (data.videoDetails) {
+        title = data.videoDetails.title || title;
+        const thumbs = data.videoDetails.thumbnail?.thumbnails;
+        if (thumbs?.length > 0) thumbnail = thumbs[thumbs.length - 1].url || thumbnail;
+      }
+
+      if (data.streamingData) {
+        // Combined video+audio (360p, 720p) — সরাসরি download যোগ্য
+        const combinedFmts: any[] = data.streamingData.formats || [];
+        combinedFmts.forEach((f: any) => {
+          if (f.url && !f.signatureCipher) {
+            const q = f.qualityLabel || f.quality || 'HD';
+            formats.push({ quality: `${q} Video`, ext: 'mp4', url: f.url });
+          }
+        });
+
+        // Audio only — MP4A format (best quality)
+        const adaptiveFmts: any[] = data.streamingData.adaptiveFormats || [];
+        const audioFmts = adaptiveFmts
+          .filter((f: any) => f.mimeType?.startsWith('audio/mp4') && f.url && !f.signatureCipher)
+          .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+        
+        if (audioFmts.length > 0) {
+          formats.push({ quality: 'High Quality Audio', ext: 'mp3', url: audioFmts[0].url });
         }
-      } else {
-        errors.push(`Engine 1 (VKR): HTTP ${r.status}`);
+
+        console.log(`Engine 1 (ANDROID): ${formats.length} formats, signatureCipher=${combinedFmts.some((f:any) => f.signatureCipher)}`);
+      }
+
+      if (data.playabilityStatus?.status === 'ERROR' || data.playabilityStatus?.status === 'UNPLAYABLE') {
+        errors.push(`Engine 1: Video is ${data.playabilityStatus.status} - ${data.playabilityStatus.reason || ''}`);
+        formats = [];
       }
     } catch (e: any) {
-      console.log('Engine 1 (VKR) Failed:', e.message);
+      console.log('Engine 1 (InnerTube ANDROID) Failed:', e.message);
       errors.push(`Engine 1: ${e.message}`);
     }
 
-    // ── ইঞ্জিন ২: BK9 API ────────────────────────────────────────────────────
+    // ── ইঞ্জিন ২: YouTube InnerTube — IOS Client ─────────────────────────────
     if (formats.length === 0) {
       try {
-        console.log('Engine 2: BK9...');
+        console.log('Engine 2: InnerTube IOS...');
+        const data = await fetchInnerTube(videoId, 'IOS', '17.33.2', {
+          deviceMake: 'Apple',
+          deviceModel: 'iPhone16,2',
+          osName: 'iPhone',
+          osVersion: '17.5.1.21F90',
+        });
+
+        if (data.videoDetails && !title) {
+          title = data.videoDetails.title || title;
+        }
+
+        if (data.streamingData) {
+          const combinedFmts: any[] = data.streamingData.formats || [];
+          combinedFmts.forEach((f: any) => {
+            if (f.url && !f.signatureCipher) {
+              const q = f.qualityLabel || f.quality || 'HD';
+              formats.push({ quality: `${q} Video`, ext: 'mp4', url: f.url });
+            }
+          });
+
+          const adaptiveFmts: any[] = data.streamingData.adaptiveFormats || [];
+          const audioFmts = adaptiveFmts
+            .filter((f: any) => f.mimeType?.startsWith('audio/mp4') && f.url && !f.signatureCipher)
+            .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+          
+          if (audioFmts.length > 0) {
+            formats.push({ quality: 'High Quality Audio', ext: 'mp3', url: audioFmts[0].url });
+          }
+
+          console.log(`Engine 2 (IOS): ${formats.length} formats`);
+        }
+      } catch (e: any) {
+        console.log('Engine 2 (InnerTube IOS) Failed:', e.message);
+        errors.push(`Engine 2: ${e.message}`);
+      }
+    }
+
+    // ── ইঞ্জিন ৩: YouTube InnerTube — TV Embedded Player ─────────────────────
+    if (formats.length === 0) {
+      try {
+        console.log('Engine 3: InnerTube TVHTML5...');
+        const data = await fetchInnerTube(videoId, 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', '2.0');
+
+        if (data.streamingData) {
+          const combinedFmts: any[] = data.streamingData.formats || [];
+          combinedFmts.forEach((f: any) => {
+            if (f.url && !f.signatureCipher) {
+              formats.push({ quality: `${f.qualityLabel || 'HD'} Video`, ext: 'mp4', url: f.url });
+            }
+          });
+          console.log(`Engine 3 (TV): ${formats.length} formats`);
+        }
+      } catch (e: any) {
+        console.log('Engine 3 (InnerTube TV) Failed:', e.message);
+        errors.push(`Engine 3: ${e.message}`);
+      }
+    }
+
+    // ── ইঞ্জিন ৪: VKR External API ───────────────────────────────────────────
+    if (formats.length === 0) {
+      try {
+        console.log('Engine 4: VKR...');
+        const r = await fetchSafe(
+          `https://api.vkrdownloader.co.in/api?vkr=${encodeURIComponent(cleanUrl)}`,
+          { headers: { 'User-Agent': UA_BROWSER } },
+          12000
+        );
+        if (r.ok) {
+          const d = await r.json();
+          if (d.data?.downloads?.length > 0) {
+            title = d.data.title || title;
+            thumbnail = d.data.thumbnail || thumbnail;
+            d.data.downloads.forEach((dl: any) => {
+              if (!dl.url) return;
+              const isAudio = dl.url.includes('.mp3') || dl.quality?.toLowerCase().includes('audio');
+              formats.push({ quality: dl.quality || (isAudio ? 'Audio' : 'Video'), ext: isAudio ? 'mp3' : 'mp4', url: dl.url });
+            });
+          }
+        }
+        console.log(`Engine 4 (VKR): ${formats.length} formats`);
+      } catch (e: any) {
+        errors.push(`Engine 4: ${e.message}`);
+      }
+    }
+
+    // ── ইঞ্জিন ৫: BK9 External API ───────────────────────────────────────────
+    if (formats.length === 0) {
+      try {
+        console.log('Engine 5: BK9...');
         const r = await fetchSafe(
           `https://bk9.fun/download/youtube?url=${encodeURIComponent(cleanUrl)}`,
-          { headers: { 'User-Agent': UA, 'Accept': 'application/json' } },
+          { headers: { 'User-Agent': UA_BROWSER } },
           12000
         );
         if (r.ok) {
@@ -160,185 +297,20 @@ export async function POST(req: Request) {
             thumbnail = d.BK9.thumb || thumbnail;
             if (d.BK9.vid) formats.push({ quality: 'HD Video MP4', ext: 'mp4', url: d.BK9.vid });
             if (d.BK9.aud) formats.push({ quality: 'Audio MP3', ext: 'mp3', url: d.BK9.aud });
-            console.log(`Engine 2 (BK9): ${formats.length} formats found`);
-          } else {
-            errors.push('Engine 2 (BK9): status false or no data');
           }
-        } else {
-          errors.push(`Engine 2 (BK9): HTTP ${r.status}`);
         }
+        console.log(`Engine 5 (BK9): ${formats.length} formats`);
       } catch (e: any) {
-        console.log('Engine 2 (BK9) Failed:', e.message);
-        errors.push(`Engine 2: ${e.message}`);
-      }
-    }
-
-    // ── ইঞ্জিন ৩: GoAPI ──────────────────────────────────────────────────────
-    if (formats.length === 0) {
-      try {
-        console.log('Engine 3: GoAPI...');
-        const r = await fetchSafe(
-          `https://api.goapi.xyz/google/youtube?url=${encodeURIComponent(cleanUrl)}`,
-          { headers: { 'User-Agent': UA, 'Accept': 'application/json' } },
-          12000
-        );
-        if (r.ok) {
-          const d = await r.json();
-          if (d.data?.formats && Array.isArray(d.data.formats)) {
-            title = d.data.title || title;
-            thumbnail = d.data.thumbnail || thumbnail;
-            d.data.formats.forEach((f: any) => {
-              if (!f.url) return;
-              formats.push({ quality: f.quality || 'HD Video', ext: f.ext || 'mp4', url: f.url });
-            });
-            console.log(`Engine 3 (GoAPI): ${formats.length} formats found`);
-          } else {
-            errors.push('Engine 3 (GoAPI): no format data');
-          }
-        } else {
-          errors.push(`Engine 3 (GoAPI): HTTP ${r.status}`);
-        }
-      } catch (e: any) {
-        console.log('Engine 3 (GoAPI) Failed:', e.message);
-        errors.push(`Engine 3: ${e.message}`);
-      }
-    }
-
-    // ── ইঞ্জিন ৪: yt1s.com ───────────────────────────────────────────────────
-    if (formats.length === 0 && videoId) {
-      try {
-        console.log('Engine 4: yt1s...');
-        const analyseRes = await fetchSafe('https://yt1s.com/api/ajaxSearch/index', {
-          method: 'POST',
-          headers: {
-            'User-Agent': UA,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-            'Origin': 'https://yt1s.com',
-            'Referer': 'https://yt1s.com/',
-          },
-          body: `q=${encodeURIComponent(cleanUrl)}&vt=home`,
-        }, 12000);
-
-        if (analyseRes.ok) {
-          const analyseData = await analyseRes.json();
-          if (analyseData.status === 'ok' && analyseData.vid) {
-            title = analyseData.title || title;
-            thumbnail = analyseData.thumbnail || thumbnail;
-            const vid = analyseData.vid;
-            const kval = analyseData.kc || Object.keys(analyseData.links?.mp4 || {})[0] || '18';
-
-            const convertRes = await fetchSafe('https://yt1s.com/api/ajaxConvert/convert', {
-              method: 'POST',
-              headers: {
-                'User-Agent': UA,
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json',
-                'Origin': 'https://yt1s.com',
-                'Referer': 'https://yt1s.com/',
-              },
-              body: `vid=${vid}&k=${kval}`,
-            }, 12000);
-
-            if (convertRes.ok) {
-              const convertData = await convertRes.json();
-              if (convertData.status === 'ok' && convertData.dlink) {
-                formats.push({ quality: 'HD Video MP4', ext: 'mp4', url: convertData.dlink });
-              }
-            }
-
-            const mp3key = Object.keys(analyseData.links?.mp3 || {})[0];
-            if (mp3key) {
-              const mp3Res = await fetchSafe('https://yt1s.com/api/ajaxConvert/convert', {
-                method: 'POST',
-                headers: {
-                  'User-Agent': UA,
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'Origin': 'https://yt1s.com',
-                  'Referer': 'https://yt1s.com/',
-                },
-                body: `vid=${vid}&k=${mp3key}`,
-              }, 12000);
-              if (mp3Res.ok) {
-                const mp3Data = await mp3Res.json();
-                if (mp3Data.status === 'ok' && mp3Data.dlink) {
-                  formats.push({ quality: 'Audio MP3', ext: 'mp3', url: mp3Data.dlink });
-                }
-              }
-            }
-            console.log(`Engine 4 (yt1s): ${formats.length} formats found`);
-          } else {
-            errors.push('Engine 4 (yt1s): status not ok');
-          }
-        } else {
-          errors.push(`Engine 4 (yt1s): HTTP ${analyseRes.status}`);
-        }
-      } catch (e: any) {
-        console.log('Engine 4 (yt1s) Failed:', e.message);
-        errors.push(`Engine 4: ${e.message}`);
-      }
-    }
-
-    // ── ইঞ্জিন ৫: y2mate.com ─────────────────────────────────────────────────
-    if (formats.length === 0 && videoId) {
-      try {
-        console.log('Engine 5: y2mate...');
-        const analyseRes = await fetchSafe('https://www.y2mate.com/mates/analyzeV2/ajax', {
-          method: 'POST',
-          headers: {
-            'User-Agent': UA,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-            'Origin': 'https://www.y2mate.com',
-            'Referer': 'https://www.y2mate.com/',
-          },
-          body: `k_query=${encodeURIComponent(cleanUrl)}&k_page=home&hl=en&q_auto=0`,
-        }, 12000);
-
-        if (analyseRes.ok) {
-          const d = await analyseRes.json();
-          if (d.status === 'ok' && d.vid) {
-            title = d.title || title;
-            thumbnail = d.thumbnail || thumbnail;
-            const mp4Links = d.links?.mp4 || {};
-            const mp4Key = Object.keys(mp4Links)[0];
-            if (mp4Key) {
-              const convertRes = await fetchSafe('https://www.y2mate.com/mates/convertV2/index', {
-                method: 'POST',
-                headers: {
-                  'User-Agent': UA,
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'Origin': 'https://www.y2mate.com',
-                  'Referer': 'https://www.y2mate.com/',
-                },
-                body: `vid=${d.vid}&k=${mp4Key}`,
-              }, 12000);
-              if (convertRes.ok) {
-                const cd = await convertRes.json();
-                if (cd.status === 'ok' && cd.dlink) {
-                  formats.push({ quality: mp4Links[mp4Key]?.q || 'HD Video', ext: 'mp4', url: cd.dlink });
-                }
-              }
-            }
-            console.log(`Engine 5 (y2mate): ${formats.length} formats found`);
-          } else {
-            errors.push('Engine 5 (y2mate): no vid in response');
-          }
-        } else {
-          errors.push(`Engine 5 (y2mate): HTTP ${analyseRes.status}`);
-        }
-      } catch (e: any) {
-        console.log('Engine 5 (y2mate) Failed:', e.message);
         errors.push(`Engine 5: ${e.message}`);
       }
     }
 
     if (formats.length === 0) {
-      console.log('All engines failed:', errors.join(' | '));
-      throw new Error(`সব ইঞ্জিন ব্যর্থ হয়েছে। বিস্তারিত: ${errors.join(' | ')}`);
+      console.log('ALL ENGINES FAILED:', errors.join(' | '));
+      throw new Error(`সব ইঞ্জিন ব্যর্থ হয়েছে: ${errors.join(' | ')}`);
     }
 
-    // ── Deduplicate ───────────────────────────────────────────────────────────
+    // ── Deduplicate + Quality sort ────────────────────────────────────────────
     const uniqueFormats = Array.from(new Map(formats.map(f => [f.url, f])).values());
 
     return NextResponse.json(
@@ -347,11 +319,7 @@ export async function POST(req: Request) {
     );
   } catch (err: any) {
     return NextResponse.json(
-      {
-        success: false,
-        error: 'ভিডিও পাওয়া যায়নি। লিংকটি চেক করুন।',
-        details: err.message,
-      },
+      { success: false, error: 'ভিডিও পাওয়া যায়নি। লিংকটি চেক করুন।', details: err.message },
       { status: 500, headers: CORS }
     );
   }
