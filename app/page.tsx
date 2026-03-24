@@ -223,7 +223,7 @@ function WhyCard({
    MAIN PAGE
 ───────────────────────────────────────── */
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram'>('mockup');
+  const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram' | 'tiktok'>('mockup');
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -442,6 +442,7 @@ export default function Home() {
                   { id: 'mockup', label: 'Mockup API', activeClass: 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-lg' },
                   { id: 'facebook', label: 'Facebook API', activeClass: 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-lg' },
                   { id: 'instagram', label: 'Instagram API', activeClass: 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-lg' },
+                  { id: 'tiktok', label: 'TikTok API', activeClass: 'bg-white dark:bg-rose-600 text-rose-600 dark:text-white shadow-lg' },
                 ] as const
               ).map((tab) => (
                 <button
@@ -613,6 +614,64 @@ window.location.href = downloadUrl;`}
                   <code className="block text-purple-600 dark:text-purple-300 font-mono text-sm break-all bg-white dark:bg-black p-4 rounded-xl border border-purple-100 dark:border-purple-900">
                     /api/fb-downloader/proxy?url=IG_CDN_URL&amp;filename=ig-media.mp4
                   </code>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TikTok Tab ── */}
+          {activeTab === 'tiktok' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-cyan-500 dark:from-rose-400 dark:to-cyan-400">
+                    4. TikTok Video Downloader API
+                  </h3>
+                  <span className="bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-rose-200 dark:border-rose-800">
+                    No Watermark
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                  <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                    /api/tiktok-downloader
+                  </code>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-base mb-6">
+                  Extract high-quality <strong className="text-slate-800 dark:text-white">Watermark-Free Videos</strong> and <strong className="text-slate-800 dark:text-white">Original Audio (MP3)</strong> from any TikTok or Douyin link instantly.
+                </p>
+
+                <CodeBlock title="request-body.json" code={`{\n  "url": "https://www.tiktok.com/@user/video/123456789"\n}`} />
+
+                <div className="mt-8">
+                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Direct Download Proxy
+                  </h4>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">GET</span>
+                    <code className="text-sm font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 break-all">
+                      /api/tiktok-downloader?proxyUrl=URL&amp;filename=NAME&amp;ext=mp4
+                    </code>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                    Use this to bypass TikTok's strict CORS policies and trigger a browser download.
+                  </p>
+                </div>
+
+                <div className="mt-10">
+                  <CodeBlock
+                    title="tiktok-fetch.js"
+                    code={`const response = await fetch('/api/tiktok-downloader', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ url: 'TIKTOK_URL' })
+});
+
+const { data } = await response.json();
+// data contains: title, thumbnail, and formats array (video & audio)`}
+                  />
                 </div>
               </div>
             </div>
