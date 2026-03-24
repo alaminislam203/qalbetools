@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { YtDlp } from 'ytdlp-nodejs';
 
 export const maxDuration = 60; // Vercel Timeout Fix (60 Seconds)
 
@@ -43,7 +42,7 @@ export async function GET(req: Request) {
     } catch (error) { return NextResponse.json({ error: 'Proxy failed' }, { status: 500, headers: CORS }); }
 }
 
-// ── ৩. POST: YouTube Fetcher (ytdlp-nodejs + Fallbacks) ───────────────────────
+// ── ৩. POST: YouTube Fetcher (API-only Fallbacks — No binary required) ─────────
 export async function POST(req: Request) {
     try {
         const body = await req.json().catch(() => ({}));
@@ -74,44 +73,22 @@ export async function POST(req: Request) {
 
         let formats: any[] = [];
         let title = 'YouTube Video';
-        let thumbnail = 'https://images.unsplash.com/photo-1611162618758-6a4fd40becd8?q=80&w=600&auto=format&fit=crop';
+        let thumbnail = videoId
+            ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+            : 'https://images.unsplash.com/photo-1611162618758-6a4fd40becd8?q=80&w=600&auto=format&fit=crop';
         let errorDetails: string[] = [];
 
-        // === ইঞ্জিন ১: ytdlp-nodejs (The King) ===
+        // === ইঞ্জিন ১: YouTube oEmbed (title + thumbnail — no binary needed) ===
         try {
-            console.log("YT Engine 1: Trying ytdlp-nodejs...");
-            const ytdlp = new YtDlp();
-            const info = await ytdlp.getInfoAsync(cleanUrl);
-
-            if (info) {
-                title = info.title || title;
-
-                if (info._type === 'video') {
-                    thumbnail = info.thumbnail || thumbnail;
-
-                    if (info.formats && Array.isArray(info.formats)) {
-                        info.formats.forEach((f: any) => {
-                            const hasVideo = f.vcodec && f.vcodec !== 'none';
-                            const hasAudio = f.acodec && f.acodec !== 'none';
-                            const ext = f.ext || 'mp4';
-
-                            // ভিডিও + অডিও একসাথে আছে এমন লিঙ্ক
-                            if (hasVideo && hasAudio) {
-                                formats.push({ quality: (f.format_note || f.resolution || 'HD') + ' Video', ext, url: f.url });
-                            }
-                            // শুধুমাত্র অডিও লিঙ্ক
-                            else if (hasAudio && !hasVideo) {
-                                formats.push({ quality: (f.format_note || 'High') + ' Quality Audio', ext: 'mp3', url: f.url });
-                            }
-                        });
-                    }
-                } else if (info._type === 'playlist' && info.entries && info.entries.length > 0) {
-                    // Fallback to first video thumbnail if it's a playlist
-                    thumbnail = info.entries[0].thumbnail || thumbnail;
-                }
+            console.log("YT Engine 1: Trying oEmbed...");
+            const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`, { headers: HEADERS });
+            const oembed = await res.json();
+            if (oembed && oembed.title) {
+                title = oembed.title;
+                thumbnail = oembed.thumbnail_url || thumbnail;
             }
-        } catch (e: any) { 
-            console.log("YT Engine 1 (ytdlp) Failed:", e.message); 
+        } catch (e: any) {
+            console.log("YT Engine 1 (oEmbed) Failed:", e.message);
             errorDetails.push(`Engine 1: ${e.message}`);
         }
 
