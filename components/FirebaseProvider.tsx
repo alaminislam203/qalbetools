@@ -13,7 +13,7 @@ export default function FirebaseProvider({ children }: { children: React.ReactNo
         if (instance) {
           console.log("Firebase Analytics initialized.");
         }
-      }).catch(err => {
+      }).catch((err: any) => {
         console.error("Firebase Analytics failed to initialize:", err);
       });
     }
