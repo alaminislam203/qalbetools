@@ -19,8 +19,8 @@ export type RateLimitResult = {
 // Map to store mock usage in-memory (Only persists as long as the server instance is alive)
 const usageMap = new Map<string, { count: number; lastReset: number }>();
 
-const WINDOW_MS = 60 * 60 * 1000; // 1 Hour window
-const DEFAULT_LIMIT = 50; // Requests per hour for free tier
+const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 Hour window (Daily)
+const DEFAULT_LIMIT = 20; // Requests per day for free tier
 
 export async function checkRateLimit(identifier: string, tier: 'free' | 'pro' | 'enterprise' = 'free'): Promise<RateLimitResult> {
   const now = Date.now();
@@ -32,9 +32,9 @@ export async function checkRateLimit(identifier: string, tier: 'free' | 'pro' | 
     userData.lastReset = now;
   }
 
-  // Set limits based on tier
+  // Set limits based on tier (User: $1/day limit 50 or 100)
   let limit = DEFAULT_LIMIT;
-  if (tier === 'pro') limit = 1000;
+  if (tier === 'pro') limit = 100;
   if (tier === 'enterprise') limit = 99999;
 
   userData.count += 1;

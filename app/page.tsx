@@ -10,8 +10,8 @@ const IconChevronDown = () => (
     <polyline points="6 9 12 15 18 9" />
   </svg>
 );
-const IconArrowRight = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+const IconArrowRight = ({ className = '' }: { className?: string }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
   </svg>
 );
@@ -1159,7 +1159,7 @@ const { data } = await response.json();
       {/* ════════════════════════════════════
           PRICING & PREMIUM SECTION
       ════════════════════════════════════ */}
-      <section id="pricing" className="py-32 relative overflow-hidden bg-slate-50 dark:bg-black">
+      <section id="pricing" className="py-32 relative overflow-hidden bg-slate-50 dark:bg-black border-t border-slate-200 dark:border-slate-800">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/5 to-transparent pointer-events-none" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
@@ -1168,23 +1168,23 @@ const { data } = await response.json();
               Scale Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500 dark:from-indigo-400 dark:to-violet-400 font-black italic">Ambition</span>
             </h2>
             <p className="text-slate-600 dark:text-slate-400 text-xl max-w-2xl mx-auto leading-relaxed">
-              Start for free. Upgrade to Pro for high-volume AI processing and enterprise-grade reliability.
+              Start for free. Upgrade to Pro for just <strong className="text-indigo-600 dark:text-indigo-400">$1/day</strong> and get massive daily limits.
             </p>
           </FadeUp>
 
           <div className="grid md:grid-cols-3 gap-8 items-stretch">
             {/* Free Tier */}
             <div className="group p-10 rounded-[3rem] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col hover:border-indigo-500/30 transition-all duration-500 hover:shadow-2xl">
+              <div className="mb-8 font-black uppercase tracking-widest text-slate-400 text-xs">Hobbyist</div>
               <div className="mb-8">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Hobbyist</h3>
                 <div className="flex items-baseline justify-center gap-1">
                   <span className="text-5xl font-black text-slate-900 dark:text-white">$0</span>
-                  <span className="text-slate-500 text-sm font-medium">/ forever</span>
+                  <span className="text-slate-500 text-sm font-medium">/ 24h</span>
                 </div>
               </div>
               <ul className="space-y-4 mb-10 text-left flex-grow">
-                {['50 API Calls / Hour', 'All Basic Social Tools', 'Public Community Support', 'Zero Auth Required'].map((feat, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 text-sm">
+                {['20 API Calls / Day', 'Standard Social Tools', 'Public Community Support', 'CORS Enabled'].map((feat, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 text-sm font-medium">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 flex-shrink-0">
                       <IconZap />
                     </div>
@@ -1200,18 +1200,18 @@ const { data } = await response.json();
             {/* Pro Tier (Featured) */}
             <div className="group p-10 rounded-[3rem] bg-indigo-600 text-white flex flex-col relative scale-105 shadow-2xl shadow-indigo-500/20">
               <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-400 text-indigo-950 px-6 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
-                Most Popular
+                Best Value
               </div>
+              <div className="mb-8 font-black uppercase tracking-widest text-indigo-200 text-xs">Professional</div>
               <div className="mb-8">
-                <h3 className="text-xl font-bold mb-2">Professional</h3>
                 <div className="flex items-baseline justify-center gap-1 text-white">
-                  <span className="text-5xl font-black">$29</span>
-                  <span className="text-indigo-200 text-sm font-medium">/ month</span>
+                  <span className="text-5xl font-black">$1</span>
+                  <span className="text-indigo-200 text-sm font-medium">/ day</span>
                 </div>
               </div>
               <ul className="space-y-4 mb-10 text-left flex-grow">
-                {['1,000 API Calls / Hour', 'Full AI Suite (Grammar, Resume)', 'Private Webhook Support', 'Priority Dev Support', 'Unlimited Bulk Processing'].map((feat, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-indigo-50 text-sm">
+                {['100 API Calls / Day', 'Full AI Suite (Grammar, Resume)', 'Priority Image Processing', 'Private API Endpoint Access', 'Premium Dev Support'].map((feat, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-indigo-50 text-sm font-bold">
                     <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-white flex-shrink-0">
                       <IconZap />
                     </div>
@@ -1219,22 +1219,26 @@ const { data } = await response.json();
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-4 rounded-2xl bg-white text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-all shadow-xl shadow-black/10 active:scale-95">
-                Go Professional
+              <button 
+                onClick={() => window.open('https://buy.stripe.com/...', '_blank')} 
+                className="w-full py-4 rounded-2xl bg-white text-indigo-600 font-black text-sm hover:bg-indigo-50 transition-all shadow-xl shadow-black/10 active:scale-95 flex items-center justify-center gap-2 group"
+              >
+                Buy Now
+                <IconArrowRight className="group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
 
             {/* Enterprise Tier */}
             <div className="group p-10 rounded-[3rem] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col hover:border-violet-500/30 transition-all duration-500 hover:shadow-2xl">
+              <div className="mb-8 font-black uppercase tracking-widest text-slate-400 text-xs">Enterprise</div>
               <div className="mb-8">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Enterprise</h3>
                 <div className="flex items-baseline justify-center gap-1 text-slate-900 dark:text-white">
-                  <span className="text-5xl font-black">Custom</span>
+                  <span className="text-3xl font-black">Custom</span>
                 </div>
               </div>
               <ul className="space-y-4 mb-10 text-left flex-grow">
-                {['Unlimited API Scalability', 'Custom Route Implementation', 'Personal Account Manager', 'SLA Guaranteed Uptime', 'Dedicated Server Instance'].map((feat, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 text-sm">
+                {['Unlimited API Scalability', 'Custom Route Implementation', 'Dedicated Account Manager', 'SLA Guaranteed 99.9% Uptime'].map((feat, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 text-sm font-medium">
                     <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500 flex-shrink-0">
                       <IconZap />
                     </div>
