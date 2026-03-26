@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { ref, push, set, update, serverTimestamp } from 'firebase/database';
+import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -51,10 +51,8 @@ export default function PaymentModal({ isOpen, onClose, tier }: PaymentModalProp
       const user = auth.currentUser;
       if (!user) throw new Error("Not logged in");
 
-      const orderRef = ref(db, `orders`);
-      const newOrder = push(orderRef);
-      
-      await set(newOrder, {
+      // Add order to Firestore
+      await addDoc(collection(db, 'orders'), {
         userId: user.uid,
         userEmail: user.email,
         tier: tier,
@@ -65,8 +63,8 @@ export default function PaymentModal({ isOpen, onClose, tier }: PaymentModalProp
       });
 
       // Update user's profile to pending status
-      const userRef = ref(db, `users/${user.uid}`);
-      await update(userRef, {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
         paymentStatus: 'pending'
       });
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { auth, googleProvider, db } from '@/lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { ref, get, set, update } from 'firebase/database';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
@@ -19,10 +19,10 @@ export default function AuthButton() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
 
-      if (user) {
+      if (user && db) {
         // Sync user to database on login
-        const userRef = ref(db, `users/${user.uid}`);
-        const snapshot = await get(userRef);
+        const userRef = doc(db, 'users', user.uid);
+        const snapshot = await getDoc(userRef);
         
         if (!snapshot.exists()) {
           const initialData = {
@@ -34,10 +34,10 @@ export default function AuthButton() {
             createdAt: Date.now(),
             dailyLimit: 20
           };
-          await set(userRef, initialData);
+          await setDoc(userRef, initialData);
           setUserData(initialData);
         } else {
-          setUserData(snapshot.val());
+          setUserData(snapshot.data());
         }
       } else {
         setUserData(null);
