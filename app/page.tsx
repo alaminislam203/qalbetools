@@ -223,7 +223,7 @@ function WhyCard({
    MAIN PAGE
 ───────────────────────────────────────── */
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram' | 'tiktok' | 'youtube'>('mockup');
+  const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'grammar' | 'rewriter' | 'protector' | 'pastebin' | 'resume' | 'shortener' | 'database' | 'passport'>('mockup');
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -444,17 +444,31 @@ export default function Home() {
                   { id: 'instagram', label: 'Instagram API', activeClass: 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-lg' },
                   { id: 'tiktok', label: 'TikTok API', activeClass: 'bg-white dark:bg-rose-600 text-rose-600 dark:text-white shadow-lg' },
                   { id: 'youtube', label: 'YouTube API', activeClass: 'bg-white dark:bg-red-600 text-red-600 dark:text-white shadow-lg' },
+                  { id: 'grammar', label: 'Grammar API', activeClass: 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-lg' },
+                  { id: 'rewriter', label: 'Rewriter API', activeClass: 'bg-white dark:bg-emerald-600 text-emerald-600 dark:text-white shadow-lg' },
+                  { id: 'protector', label: 'Protector API', activeClass: 'bg-white dark:bg-amber-600 text-amber-600 dark:text-white shadow-lg' },
+                  { id: 'pastebin', label: 'Pastebin API', activeClass: 'bg-white dark:bg-slate-600 text-slate-600 dark:text-white shadow-lg' },
+                  { id: 'resume', label: 'Resume AI', activeClass: 'bg-white dark:bg-violet-600 text-violet-600 dark:text-white shadow-lg' },
+                  { id: 'shortener', label: 'Shortener API', activeClass: 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-lg' },
+                  { id: 'database', label: 'Database API', activeClass: 'bg-white dark:bg-rose-600 text-rose-600 dark:text-white shadow-lg' },
+                  { id: 'passport', label: 'Passport API', activeClass: 'bg-white dark:bg-cyan-600 text-cyan-600 dark:text-white shadow-lg' },
                 ] as const
               ).map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-6 py-3 rounded-2xl font-bold transition-all text-sm ${activeTab === tab.id
+                  className={`px-6 py-3 rounded-2xl text-sm font-bold transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${
+                    activeTab === tab.id
                       ? tab.activeClass
-                      : 'hover:bg-white/60 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400'
-                    }`}
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
                 >
                   {tab.label}
+                  {['grammar', 'rewriter', 'resume', 'passport'].includes(tab.id) && (
+                    <span className="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tighter border border-amber-200 dark:border-amber-800 shadow-sm transition-transform hover:scale-110">
+                      Pro
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -736,6 +750,503 @@ const { data } = await response.json();
             </div>
           )}
 
+          {/* ── Grammar Tab ── */}
+          {activeTab === 'grammar' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500 dark:from-indigo-400 dark:to-violet-400">
+                    6. AI Grammar Checker API
+                  </h3>
+                  <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-indigo-200 dark:border-indigo-800">
+                    Powered by Gemini
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                  <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                    /api/grammar-checker
+                  </code>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-base mb-6">
+                  Fix grammatical, spelling, and punctuation errors instantly using AI. This API provides high-accuracy corrections while strictly preserving the original meaning of your text.
+                </p>
+
+                <div className="mb-10">
+                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Request Body (JSON)
+                  </h4>
+                  <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="flex items-center gap-2">
+                        <code className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg text-sm font-mono">
+                          text
+                        </code>
+                        <span className="text-red-500 text-xs font-bold mono uppercase tracking-wider">required</span>
+                      </div>
+                      <span className="text-slate-600 dark:text-slate-400 text-sm">The English text you want to check and correct.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <CodeBlock
+                  title="request-example.js"
+                  code={`const response = await fetch('/api/grammar-checker', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    text: 'I has a apple and it are very delicious.' 
+  })
+});
+
+const { success, data } = await response.json();
+console.log(data.corrected); // "I have an apple and it is very delicious."`}
+                />
+
+                <div className="mt-8">
+                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Response Schema
+                  </h4>
+                  <CodeBlock
+                    title="response.json"
+                    code={`{
+  "success": true,
+  "data": {
+    "original": "I has a apple and it are very delicious.",
+    "corrected": "I have an apple and it is very delicious."
+  }
+}`}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Article Rewriter Tab ── */}
+          {activeTab === 'rewriter' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-400">
+                    7. AI Article Rewriter API
+                  </h3>
+                  <span className="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-emerald-200 dark:border-emerald-800">
+                    Tone & Length Control
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                  <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                    /api/article-rewriter
+                  </code>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-base mb-6">
+                  Rewrite any text with professional quality. Choose your preferred tone (Professional, Casual, Creative) and length (Shorten, Expand, Standard).
+                </p>
+
+                <div className="mb-10">
+                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Request Body (JSON)
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'text', desc: 'The content you want to rewrite.', required: true },
+                      { key: 'tone', desc: 'Tone of output (Standard, Professional, Casual, Creative).', required: false },
+                      { key: 'length', desc: 'Length control (Standard, Shorten, Expand).', required: false },
+                    ].map((p) => (
+                      <div key={p.key} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <code className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg text-sm font-mono">
+                            {p.key}
+                          </code>
+                          {p.required && <span className="text-red-500 text-xs font-bold mono uppercase tracking-wider">required</span>}
+                        </div>
+                        <span className="text-slate-600 dark:text-slate-400 text-sm">{p.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <CodeBlock
+                  title="rewrite-example.js"
+                  code={`const response = await fetch('/api/article-rewriter', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    text: 'Artificial Intelligence is changing the world fast.',
+    tone: 'Professional',
+    length: 'Expand'
+  })
+});
+
+const { success, data } = await response.json();
+console.log(data.rewritten);`}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Link Protector Tab ── */}
+          {activeTab === 'protector' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-orange-500 dark:from-amber-400 dark:to-orange-400">
+                    8. Multi-Link Protector API
+                  </h3>
+                  <span className="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-amber-200 dark:border-amber-800">
+                    Safe Sharing
+                  </span>
+                </div>
+
+                <div className="space-y-8 mb-10">
+                  <div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                      <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                      <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                        /api/link-protector
+                      </code>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 italic">Save multiple links under a single unique ID.</p>
+                    <CodeBlock title="create-links.js" code={`// body: { title: "My Collection", links: ["url1", "url2"] }\nconst { data } = await res.json();\nconsole.log(data.id); // returns unique key`} />
+                  </div>
+
+                  <div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                      <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">GET</span>
+                      <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                        /api/link-protector?id=KEY
+                      </code>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 italic">Retrieve protected links using the ID.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Pastebin Tab ── */}
+          {activeTab === 'pastebin' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-slate-800 dark:text-slate-200">
+                    9. Simple Pastebin API
+                  </h3>
+                  <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200 dark:border-slate-700">
+                    Fast & Anonymous
+                  </span>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-3 py-1 rounded-lg font-mono font-bold text-xs uppercase">POST</span>
+                      <span className="text-xs font-mono text-slate-500">Create Paste</span>
+                    </div>
+                    <CodeBlock title="create.js" code={`// body: { content: "Your text here..." }\nconst { data } = await res.json();\nconsole.log(data.id);`} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-3 py-1 rounded-lg font-mono font-bold text-xs uppercase">GET</span>
+                      <span className="text-xs font-mono text-slate-500">Read Paste</span>
+                    </div>
+                    <CodeBlock title="read.js" code={`// URL: /api/pastebin?id=xyz123\nconst { data } = await res.json();\nconsole.log(data.content);`} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Resume AI Tab ── */}
+          {activeTab === 'resume' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-fuchsia-500 dark:from-violet-400 dark:to-fuchsia-400">
+                    10. Resume AI Expert API
+                  </h3>
+                  <span className="bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-violet-200 dark:border-violet-800">
+                    Career Suite
+                  </span>
+                </div>
+
+                <div className="mb-10">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+                    <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest">POST</span>
+                    <code className="text-base font-mono bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800">/api/resume-ai</code>
+                  </div>
+
+                  <h4 className="font-bold text-slate-800 dark:text-white mb-4">Available Actions:</h4>
+                  <div className="grid sm:grid-cols-2 gap-4 h-fit">
+                    {[
+                      { action: 'summary', desc: 'Generate professional resume summaries.', params: 'jobTitle' },
+                      { action: 'experience', desc: 'Enhance work history bullet points.', params: 'rawText' },
+                      { action: 'skills', desc: 'Predict in-demand skills for a role.', params: 'jobTitle' },
+                      { action: 'coverLetter', desc: 'Write tailored professional cover letters.', params: 'name, jobTitle, summary, skills, jobDesc' },
+                      { action: 'ats', desc: 'Perform ATS check and resume analysis.', params: 'cvText, jobDesc' },
+                    ].map((a) => (
+                      <div key={a.action} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col h-full">
+                        <code className="text-violet-600 dark:text-violet-400 text-sm font-bold mb-2 uppercase tracking-wide">{a.action}</code>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 flex-grow">{a.desc}</p>
+                        <p className="text-[10px] font-mono text-slate-400 italic">Params: {a.params}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <CodeBlock
+                   title="sample-request.js"
+                   code={`const res = await fetch('/api/resume-ai', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    action: 'summary', 
+    jobTitle: 'Senior React Developer' 
+  })
+});`}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Shortener Tab ── */}
+          {activeTab === 'shortener' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500 dark:from-blue-400 dark:to-indigo-400">
+                    11. URL Shortener & QR API
+                  </h3>
+                  <span className="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-blue-200 dark:border-blue-800">
+                    is.gd Powered
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
+                   <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest">POST</span>
+                   <code className="text-base font-mono bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800">/api/url-shortener</code>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-400 mb-8">Instantly shorten URLs and generate scan-ready QR codes for any link.</p>
+
+                <CodeBlock 
+                  title="response-preview.json"
+                  code={`{
+  "success": true,
+  "data": {
+    "originalUrl": "https://example.com/long-url",
+    "shortUrl": "https://is.gd/abc123",
+    "qrCode": "https://api.qrserver.com/v1/create-qr-code/..."
+  }
+}`}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Custom Database Tab ── */}
+          {activeTab === 'database' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-pink-500 dark:from-rose-400 dark:to-pink-400">
+                    12. Custom Database Search API
+                  </h3>
+                  <span className="bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-rose-200 dark:border-rose-800">
+                    Local Search Logic
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
+                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest">POST</span>
+                  <code className="text-base font-mono bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800">/api/custom-database</code>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-400 mb-8">
+                  Search through your custom collection of software, assets, and premium content. This API performs a fuzzy search on titles and categories.
+                </p>
+
+                <CodeBlock 
+                  title="request-body.json"
+                  code={`{\n  "query": "Typing Software"\n}`}
+                />
+
+                <div className="mt-8">
+                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Sample Response
+                  </h4>
+                  <CodeBlock 
+                    title="response.json"
+                    code={`{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "QalbeTalks Premium Typing Software",
+      "type": "Software",
+      "size": "150 MB",
+      "link": "https://drive.google.com/..."
+    }
+  ]
+}`}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Passport Photo Tab ── */}
+          {activeTab === 'passport' && (
+            <div className="tab-panel">
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-500 dark:from-cyan-400 dark:to-blue-400">
+                    13. Passport Photo AI API
+                  </h3>
+                  <span className="bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-cyan-200 dark:border-cyan-800">
+                    Background Removal
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
+                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest">POST</span>
+                  <code className="text-base font-mono bg-white dark:bg-slate-900 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800">/api/passport-photo</code>
+                </div>
+
+                <p className="text-slate-600 dark:text-slate-400 mb-8 font-medium">
+                  Automatically remove backgrounds from portraits using AI. Perfect for creating professional passport, visa, or profile photos in seconds.
+                </p>
+
+                <div className="mb-10">
+                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    Request (Multipart Form-Data)
+                  </h4>
+                  <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-2 mb-2">
+                       <code className="text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20 px-3 py-1 rounded-lg text-sm font-mono">image</code>
+                       <span className="text-red-500 text-xs font-bold mono uppercase tracking-wider">required</span>
+                    </div>
+                    <span className="text-slate-600 dark:text-slate-400 text-sm italic">The portrait image file (JPG, PNG).</span>
+                  </div>
+                </div>
+
+                <CodeBlock 
+                  title="remove-bg.js"
+                  code={`const formData = new FormData();
+formData.append('image', fileInput.files[0]);
+
+const response = await fetch('/api/passport-photo', {
+  method: 'POST',
+  body: formData
+});
+
+const { data } = await response.json();
+// Returns data.base64 (Processed image)`}
+                />
+              </div>
+            </div>
+          )}
+
+        </div>
+      </section>
+
+
+      {/* ════════════════════════════════════
+          PRICING & PREMIUM SECTION
+      ════════════════════════════════════ */}
+      <section id="pricing" className="py-32 relative overflow-hidden bg-slate-50 dark:bg-black">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/5 to-transparent pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+          <FadeUp className="mb-20">
+            <h2 className="text-4xl md:text-6xl font-black mb-6 tracking-tight text-slate-900 dark:text-white">
+              Scale Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500 dark:from-indigo-400 dark:to-violet-400 font-black italic">Ambition</span>
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xl max-w-2xl mx-auto leading-relaxed">
+              Start for free. Upgrade to Pro for high-volume AI processing and enterprise-grade reliability.
+            </p>
+          </FadeUp>
+
+          <div className="grid md:grid-cols-3 gap-8 items-stretch">
+            {/* Free Tier */}
+            <div className="group p-10 rounded-[3rem] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col hover:border-indigo-500/30 transition-all duration-500 hover:shadow-2xl">
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Hobbyist</h3>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-5xl font-black text-slate-900 dark:text-white">$0</span>
+                  <span className="text-slate-500 text-sm font-medium">/ forever</span>
+                </div>
+              </div>
+              <ul className="space-y-4 mb-10 text-left flex-grow">
+                {['50 API Calls / Hour', 'All Basic Social Tools', 'Public Community Support', 'Zero Auth Required'].map((feat, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 flex-shrink-0">
+                      <IconZap />
+                    </div>
+                    {feat}
+                  </li>
+                ))}
+              </ul>
+              <button className="w-full py-4 rounded-2xl bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-800 transition-all">
+                Current Plan
+              </button>
+            </div>
+
+            {/* Pro Tier (Featured) */}
+            <div className="group p-10 rounded-[3rem] bg-indigo-600 text-white flex flex-col relative scale-105 shadow-2xl shadow-indigo-500/20">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-amber-400 text-indigo-950 px-6 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg">
+                Most Popular
+              </div>
+              <div className="mb-8">
+                <h3 className="text-xl font-bold mb-2">Professional</h3>
+                <div className="flex items-baseline justify-center gap-1 text-white">
+                  <span className="text-5xl font-black">$29</span>
+                  <span className="text-indigo-200 text-sm font-medium">/ month</span>
+                </div>
+              </div>
+              <ul className="space-y-4 mb-10 text-left flex-grow">
+                {['1,000 API Calls / Hour', 'Full AI Suite (Grammar, Resume)', 'Private Webhook Support', 'Priority Dev Support', 'Unlimited Bulk Processing'].map((feat, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-indigo-50 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-white flex-shrink-0">
+                      <IconZap />
+                    </div>
+                    {feat}
+                  </li>
+                ))}
+              </ul>
+              <button className="w-full py-4 rounded-2xl bg-white text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-all shadow-xl shadow-black/10 active:scale-95">
+                Go Professional
+              </button>
+            </div>
+
+            {/* Enterprise Tier */}
+            <div className="group p-10 rounded-[3rem] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col hover:border-violet-500/30 transition-all duration-500 hover:shadow-2xl">
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Enterprise</h3>
+                <div className="flex items-baseline justify-center gap-1 text-slate-900 dark:text-white">
+                  <span className="text-5xl font-black">Custom</span>
+                </div>
+              </div>
+              <ul className="space-y-4 mb-10 text-left flex-grow">
+                {['Unlimited API Scalability', 'Custom Route Implementation', 'Personal Account Manager', 'SLA Guaranteed Uptime', 'Dedicated Server Instance'].map((feat, idx) => (
+                  <li key={idx} className="flex items-center gap-3 text-slate-600 dark:text-slate-400 text-sm">
+                    <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500 flex-shrink-0">
+                      <IconZap />
+                    </div>
+                    {feat}
+                  </li>
+                ))}
+              </ul>
+              <button className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition-all">
+                Contact Sales
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
