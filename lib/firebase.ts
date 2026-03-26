@@ -5,14 +5,14 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCqEfzOzDGe4lSLUxqe2KL6t4hFKHOHBdk",
-  authDomain: "filehubtop.firebaseapp.com",
-  databaseURL: "https://filehubtop-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "filehubtop",
-  storageBucket: "filehubtop.firebasestorage.app",
-  messagingSenderId: "284898778501",
-  appId: "1:284898778501:web:6b8f542f4bb49a4248f8ec",
-  measurementId: "G-J4SY1Q3555"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase (Singleton pattern for Next.js)
