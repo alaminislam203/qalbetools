@@ -22,7 +22,7 @@ const usageMap = new Map<string, { count: number; lastReset: number }>();
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 Hour window (Daily)
 const DEFAULT_LIMIT = 20; // Requests per day for free tier
 
-export async function checkRateLimit(identifier: string, tier: 'free' | 'pro' | 'enterprise' = 'free'): Promise<RateLimitResult> {
+export async function checkRateLimit(identifier: string, forceTier?: 'free' | 'pro' | 'enterprise'): Promise<RateLimitResult> {
   const now = Date.now();
   const userData = usageMap.get(identifier) || { count: 0, lastReset: now };
 
@@ -32,8 +32,10 @@ export async function checkRateLimit(identifier: string, tier: 'free' | 'pro' | 
     userData.lastReset = now;
   }
 
-  // Set limits based on tier (User: $1/day limit 50 or 100)
+  // Determine limit based on tier
   let limit = DEFAULT_LIMIT;
+  const tier = forceTier || 'free';
+  
   if (tier === 'pro') limit = 100;
   if (tier === 'enterprise') limit = 99999;
 

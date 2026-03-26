@@ -2,10 +2,14 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
 
 export default function AuthButton() {
   const { user, userData, loading, login, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Admin access check for the UI link
+  const isAdmin = user?.email === 'filehubtop@gmail.com' || user?.email === 'alaminislam203@gmail.com' || user?.email === 'sajid@example.com'; 
 
   if (loading) return (
     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
@@ -57,18 +61,24 @@ export default function AuthButton() {
             </div>
             
             <div className="p-2 text-sm">
-              <button 
+              <Link 
+                href="/dashboard"
                 className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-3 font-medium"
                 onClick={() => setShowDropdown(false)}
               >
-                My Dashboard
-              </button>
-              <button 
-                className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-3 font-medium"
-                onClick={() => setShowDropdown(false)}
-              >
-                API Usage
-              </button>
+                User Dashboard
+              </Link>
+              
+              {isAdmin && (
+                <Link 
+                    href="/admin"
+                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 transition-all flex items-center gap-3 font-bold"
+                    onClick={() => setShowDropdown(false)}
+                >
+                    Admin Panel
+                </Link>
+              )}
+
               <div className="h-px bg-slate-100 dark:border-slate-800 my-1 mx-2" />
               <button
                 onClick={logout}
