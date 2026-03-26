@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import AuthButton from '@/components/AuthButton';
+import PaymentModal from '@/components/PaymentModal';
 
 /* ─────────────────────────────────────────
    SVG ICON COMPONENTS
@@ -226,6 +227,8 @@ function WhyCard({
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'grammar' | 'rewriter' | 'protector' | 'pastebin' | 'resume' | 'shortener' | 'database' | 'passport'>('mockup');
   const [scrolled, setScrolled] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedTier, setSelectedTier] = useState('pro');
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -1222,7 +1225,10 @@ const { data } = await response.json();
                 ))}
               </ul>
               <button 
-                onClick={() => window.open('https://buy.stripe.com/...', '_blank')} 
+                onClick={() => {
+                  setSelectedTier('pro');
+                  setShowPaymentModal(true);
+                }} 
                 className="w-full py-4 rounded-2xl bg-white text-indigo-600 font-black text-sm hover:bg-indigo-50 transition-all shadow-xl shadow-black/10 active:scale-95 flex items-center justify-center gap-2 group"
               >
                 Buy Now
@@ -1468,6 +1474,13 @@ const { data } = await response.json();
           </div>
         </div>
       </footer>
+
+      {/* Payment Modal */}
+      <PaymentModal 
+        isOpen={showPaymentModal} 
+        onClose={() => setShowPaymentModal(false)} 
+        tier={selectedTier} 
+      />
     </div>
   );
 }

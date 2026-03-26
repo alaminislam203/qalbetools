@@ -9,11 +9,11 @@ export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
-      setLoading(false);
 
       if (user) {
         // Sync user to database on login
@@ -21,17 +21,24 @@ export default function AuthButton() {
         const snapshot = await get(userRef);
         
         if (!snapshot.exists()) {
-          // Initialize new user metadata
-          await set(userRef, {
+          const initialData = {
             displayName: user.displayName,
             email: user.email,
             photoURL: user.photoURL,
             tier: 'free',
+            paymentStatus: 'none',
             createdAt: Date.now(),
             dailyLimit: 20
-          });
+          };
+          await set(userRef, initialData);
+          setUserData(initialData);
+        } else {
+          setUserData(snapshot.val());
         }
+      } else {
+        setUserData(null);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -92,7 +99,15 @@ export default function AuthButton() {
           <div className="absolute right-0 mt-3 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
               <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Signed in as</p>
-              <p className="font-bold truncate text-slate-800 dark:text-white">{user.email}</p>
+              <p className="font-bold truncate text-slate-800 dark:text-white mb-2">{user.email}</p>
+              
+              {userData?.tier === 'pro' ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-500 text-white uppercase tracking-wider">Pro Member</span>
+              ) : userData?.paymentStatus === 'pending' ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white uppercase tracking-wider animate-pulse">Verification Pending</span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase tracking-wider">Free Plan</span>
+              )}
             </div>
             
             <div className="p-2 text-sm">
