@@ -12,7 +12,7 @@ export default function AdminPage() {
   const [fetching, setFetching] = useState(true);
 
   // Simple admin check: Based on the users I've seen in the logs/context
-  const isAdmin = user?.email === 'filehubtop@gmail.com' || user?.email === 'alaminislam203@gmail.com' || user?.email === 'sajid@example.com'; 
+  const isAdmin = user?.email === 'ai729776@gmail.com' || user?.email === 'filehubtop@gmail.com' || user?.email === 'alaminislam203@gmail.com'; 
 
   useEffect(() => {
     if (user && isAdmin) {

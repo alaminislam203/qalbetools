@@ -9,7 +9,7 @@ export default function AuthButton() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Admin access check for the UI link
-  const isAdmin = user?.email === 'filehubtop@gmail.com' || user?.email === 'alaminislam203@gmail.com' || user?.email === 'sajid@example.com'; 
+  const isAdmin = user?.email === 'ai729776@gmail.com' || user?.email === 'filehubtop@gmail.com' || user?.email === 'alaminislam203@gmail.com'; 
 
   if (loading) return (
     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
