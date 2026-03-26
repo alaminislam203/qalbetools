@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import AuthButton from '@/components/AuthButton';
 
 /* ─────────────────────────────────────────
    SVG ICON COMPONENTS
@@ -352,6 +353,7 @@ export default function Home() {
             >
               Why Us
             </a>
+            <AuthButton />
             <a
               href="https://github.com/alaminislam203/qalbetools" target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-full hover:scale-105 transition-transform shadow-md text-sm font-bold"

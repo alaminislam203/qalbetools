@@ -13,18 +13,39 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QalbeTools - Free Device Mockup API & Generator",
-  description: "Generate beautiful, professional device mockups instantly (iPhone, MacBook) with our free API. Fast, reliable, and perfect for apps and portfolios. Powered by QalbeTalks.",
-  keywords: ["device mockup api", "free mockup generator", "iphone mockup api", "macbook mockup generator", "mockup tool", "qalbetalks", "qalbetools"],
+  title: "QalbeTools - Premium AI APIs & Device Mockup Generator",
+  description: "Access powerful AI APIs for Grammar Checking, Resume Analysis, and Passport Photo processing. Create stunning mockup designs for iPhone and MacBook. The ultimate tool suite for developers by QalbeTalks.",
+  keywords: ["premium api", "ai grammar checker api", "resume parser api", "passport photo ai", "device mockup api", "free mockup generator", "iphone mockup api", "macbook mockup generator", "mockup tool", "qalbetalks", "qalbetools"],
   authors: [{ name: "QalbeTalks", url: "https://qalbetalks.com" }],
+  metadataBase: new URL('https://qalbetools.vercel.app'),
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
-    title: "QalbeTools - Free Device Mockup API & Generator",
-    description: "Generate beautiful device mockups instantly with our free API.",
+    title: "QalbeTools - Premium AI APIs & Device Mockup Generator",
+    description: "The ultimate tool suite for developers: AI APIs, Mockup Generators, and more.",
     url: "https://qalbetools.vercel.app",
     siteName: "QalbeTools",
-    type: "website",
+    images: [
+      {
+        url: '/og-image.png', // User should add this image later
+        width: 1200,
+        height: 630,
+        alt: 'QalbeTools Preview',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'QalbeTools - Premium AI APIs',
+    description: 'Powerful AI tool suite for modern developers.',
+    creator: '@qalbetalks',
   }
 };
+
+import FirebaseProvider from "@/components/FirebaseProvider";
 
 export default function RootLayout({
   children,
@@ -36,7 +57,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <FirebaseProvider>
+          {children}
+        </FirebaseProvider>
+      </body>
     </html>
   );
 }
