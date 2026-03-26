@@ -44,6 +44,10 @@ export default function PaymentModal({ isOpen, onClose, tier }: PaymentModalProp
     
     setSubmitting(true);
     try {
+      if (!auth || !db) {
+        alert("Firebase services are not initialized. Check environment variables.");
+        return;
+      }
       const user = auth.currentUser;
       if (!user) throw new Error("Not logged in");
 

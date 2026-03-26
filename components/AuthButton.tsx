@@ -12,6 +12,10 @@ export default function AuthButton() {
   const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
 
