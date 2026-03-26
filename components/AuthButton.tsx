@@ -1,69 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { auth, googleProvider, db } from '@/lib/firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AuthButton() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, userData, loading, login, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
-
-  useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-
-      if (user && db) {
-        // Sync user to database on login
-        const userRef = doc(db, 'users', user.uid);
-        const snapshot = await getDoc(userRef);
-        
-        if (!snapshot.exists()) {
-          const initialData = {
-            displayName: user.displayName,
-            email: user.email,
-            photoURL: user.photoURL,
-            tier: 'free',
-            paymentStatus: 'none',
-            createdAt: Date.now(),
-            dailyLimit: 20
-          };
-          await setDoc(userRef, initialData);
-          setUserData(initialData);
-        } else {
-          setUserData(snapshot.data());
-        }
-      } else {
-        setUserData(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error("Login failed:", err);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setShowDropdown(false);
-    } catch (err) {
-      console.error("Logout failed:", err);
-    }
-  };
 
   if (loading) return (
     <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
@@ -72,7 +14,7 @@ export default function AuthButton() {
   if (!user) {
     return (
       <button
-        onClick={handleLogin}
+        onClick={login}
         className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 group"
       >
         Sign In
@@ -129,7 +71,7 @@ export default function AuthButton() {
               </button>
               <div className="h-px bg-slate-100 dark:border-slate-800 my-1 mx-2" />
               <button
-                onClick={handleLogout}
+                onClick={logout}
                 className="w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 hover:text-red-500 transition-all flex items-center gap-3 font-bold"
               >
                 Sign Out

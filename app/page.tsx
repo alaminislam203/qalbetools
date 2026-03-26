@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import AuthButton from '@/components/AuthButton';
 import PaymentModal from '@/components/PaymentModal';
+import { useAuth } from '@/hooks/useAuth';
 
 /* ─────────────────────────────────────────
    SVG ICON COMPONENTS
@@ -229,6 +230,7 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedTier, setSelectedTier] = useState('pro');
+  const { user, login } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -1167,6 +1169,7 @@ const { data } = await response.json();
       <section id="pricing" className="py-32 relative overflow-hidden bg-slate-50 dark:bg-black border-t border-slate-200 dark:border-slate-800">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/5 to-transparent pointer-events-none" />
         
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <FadeUp className="mb-20">
             <h2 className="text-4xl md:text-6xl font-black mb-6 tracking-tight text-slate-900 dark:text-white">
@@ -1226,12 +1229,16 @@ const { data } = await response.json();
               </ul>
               <button 
                 onClick={() => {
-                  setSelectedTier('pro');
-                  setShowPaymentModal(true);
+                  if (!user) {
+                    login();
+                  } else {
+                    setSelectedTier('pro');
+                    setShowPaymentModal(true);
+                  }
                 }} 
                 className="w-full py-4 rounded-2xl bg-white text-indigo-600 font-black text-sm hover:bg-indigo-50 transition-all shadow-xl shadow-black/10 active:scale-95 flex items-center justify-center gap-2 group"
               >
-                Buy Now
+                {user ? 'Buy Now' : 'Login to Buy'}
                 <IconArrowRight className="group-hover:translate-x-1 transition-transform" />
               </button>
             </div>

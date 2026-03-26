@@ -40,7 +40,10 @@ export default function PaymentModal({ isOpen, onClose, tier }: PaymentModalProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!txId.trim()) return;
+    if (txId.trim().length < 6) {
+      alert("Please enter a valid Transaction ID (at least 6 characters).");
+      return;
+    }
     
     setSubmitting(true);
     try {
