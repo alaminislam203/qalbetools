@@ -42,6 +42,9 @@ export const metadata: Metadata = {
     title: 'QalbeTools - Premium AI APIs',
     description: 'Powerful AI tool suite for modern developers.',
     creator: '@qalbetalks',
+  },
+  verification: {
+    google: "1B-QlbRbPowxPX6ugjNbUQ9STRuc3lbGjSm_WVQvplw",
   }
 };
 
