@@ -29,7 +29,7 @@ if (typeof window !== "undefined" && firebaseConfig.apiKey) {
     googleProvider = new GoogleAuthProvider();
     
     // Analytics only on client side
-    isSupported().then(yes => yes && (analytics = getAnalytics(app)));
+    analytics = isSupported().then(yes => yes ? getAnalytics(app) : null);
 }
 
 export { app, auth, db, googleProvider, analytics };
