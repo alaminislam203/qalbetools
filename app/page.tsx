@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AuthButton from '@/components/AuthButton';
 import PaymentModal from '@/components/PaymentModal';
 import { useAuth } from '@/hooks/useAuth';
+import { PLANS, PlanId } from '@/lib/plans';
 
 /* ─────────────────────────────────────────
    SVG ICON COMPONENTS
@@ -230,7 +231,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'mockup' | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'grammar' | 'rewriter' | 'protector' | 'pastebin' | 'resume' | 'shortener' | 'database' | 'passport'>('mockup');
   const [scrolled, setScrolled] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedTier, setSelectedTier] = useState('pro');
+  const [selectedTier, setSelectedTier] = useState<PlanId>('pro');
   const { user, login } = useAuth();
 
   useEffect(() => {
@@ -1189,7 +1190,7 @@ const { data } = await response.json();
             </p>
           </FadeUp>
 
-          <div className="grid md:grid-cols-3 gap-8 items-stretch">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             {/* Free Tier */}
             <div className="group p-10 rounded-[3rem] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col hover:border-indigo-500/30 transition-all duration-500 hover:shadow-2xl">
               <div className="mb-8 font-black uppercase tracking-widest text-slate-400 text-xs">Hobbyist</div>
@@ -1211,6 +1212,33 @@ const { data } = await response.json();
               </ul>
               <button className="w-full py-4 rounded-2xl bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-800 transition-all">
                 Current Plan
+              </button>
+            </div>
+
+            {/* Plus Tier */}
+            <div className="group p-8 rounded-[2.5rem] bg-white dark:bg-slate-950 border-2 border-blue-500/40 flex flex-col hover:border-blue-500 transition-all duration-500 hover:shadow-2xl">
+              <div className="mb-6 font-black uppercase tracking-widest text-blue-500 text-[10px]">Developer Plus</div>
+              <div className="mb-6">
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-4xl font-black text-slate-900 dark:text-white">$10</span>
+                  <span className="text-slate-500 text-xs font-medium">/ month</span>
+                </div>
+              </div>
+              <ul className="space-y-3 mb-8 text-left flex-grow">
+                {PLANS.plus.features.map((feat: string, idx: number) => (
+                  <li key={idx} className="flex items-center gap-2 text-slate-700 dark:text-slate-200 text-xs font-bold">
+                    <div className="w-4 h-4 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 flex-shrink-0">
+                      <IconZap />
+                    </div>
+                    {feat}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => { setSelectedTier('plus'); setShowPaymentModal(true); }}
+                className="w-full py-3 rounded-xl bg-blue-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all active:scale-95"
+              >
+                Upgrade to Plus
               </button>
             </div>
 

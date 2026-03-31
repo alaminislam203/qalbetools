@@ -1,6 +1,7 @@
 import { db } from './firebase';
-import { collection, query, where, getDocs, updateDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { NextRequest, NextResponse } from 'next/server';
+import { PLANS, DEFAULT_PLAN, PlanId } from './plans';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -33,13 +34,17 @@ export async function validateApiToken(req: NextRequest) {
     const userData = userDoc.data();
     const userId = userDoc.id;
 
+    // Determine limit from centralized PLANS
+    const tier = (userData.tier || 'free') as PlanId;
+    const plan = PLANS[tier] || DEFAULT_PLAN;
+    const limit = plan.dailyLimit;
+
     // Check usage limits
     const now = new Date();
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
     
     let usageData = userData.usage || {};
     let dailyUsage = usageData[today] || 0;
-    const limit = userData.dailyLimit || 20;
 
     if (dailyUsage >= limit) {
         return { success: false, error: `Daily limit reached (${limit}). Upgrade your plan for higher limits.` };

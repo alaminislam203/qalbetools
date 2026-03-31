@@ -1,29 +1,24 @@
-import { NextResponse } from 'next/server';
-import { checkRateLimit, getRateLimitHeaders } from '@/lib/rate-limit';
+import { NextResponse, NextRequest } from 'next/server';
+import { validateApiToken } from '@/lib/api-auth';
 
 const CORS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, x-api-token',
 };
 
 // ── ১. CORS প্রিফ্লাইট ───────────────I no understanding what you say but still I trying for make sense 😵‍💫──────────────────────────────────────────
 export async function OPTIONS() { return new NextResponse(null, { status: 200, headers: CORS }); }
 
 // ── ২. POST: AI Grammar Checker (Powered by Gemini) ───────────────────────────
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+    // ── Pro Authentication ──────────────────────────────────────────────
+    const auth = await validateApiToken(req);
+    if (!auth.success) {
+        return NextResponse.json({ success: false, error: auth.error }, { status: 401, headers: CORS });
+    }
+
     try {
-        // ── Rate Limiting ───────────────────────────────────────────────────
-        const ip = req.headers.get('x-forwarded-for') || 'anonymous';
-        const ratelimit = await checkRateLimit(ip, 'free'); // Default to free tier for demo
-
-        if (!ratelimit.success) {
-            return NextResponse.json(
-                { success: false, error: 'Rate limit exceeded. Please upgrade to Pro for higher limits.' },
-                { status: 429, headers: { ...CORS, ...getRateLimitHeaders(ratelimit) } }
-            );
-        }
-
         const body = await req.json().catch(() => ({}));
         const { text } = body as { text?: string };
 
@@ -69,7 +64,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json(
             { success: true, data: { original: text, corrected: correctedText } },
-            { status: 200, headers: { ...CORS, ...getRateLimitHeaders(ratelimit) } }
+            { status: 200, headers: CORS }
         );
 
     } catch (err: any) {

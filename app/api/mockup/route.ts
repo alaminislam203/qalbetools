@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
+import { validateApiToken } from '@/lib/api-auth';
 
 // শুধু ফাইলের নাম এবং কর্নারের রাউন্ডনেস (০.১ মানে ১০%, ০.০১ মানে ১%)
 // কোনো হার্ডকোডেড উইডথ/হাইট বা টপ/লেফট মাপের দরকার নেই!
@@ -13,7 +14,7 @@ const devices: Record<string, { file: string; radiusRatio: number }> = {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-token',
 };
 
 // ১. CORS এর জন্য OPTIONS রিকোয়েস্ট হ্যান্ডলার যুক্ত করা হলো
@@ -24,7 +25,13 @@ export async function OPTIONS() {
 // ডাইনামিক ক্যালকুলেশন বারবার না হওয়ার জন্য ক্যাশে সেভ রাখা হচ্ছে
 const boundingBoxCache: Record<string, { top: number, left: number, width: number, height: number, frameW: number, frameH: number }> = {};
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // ── Pro Authentication ──────────────────────────────────────────────
+  const auth = await validateApiToken(req);
+  if (!auth.success) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: 401, headers: corsHeaders });
+  }
+
   try {
     const formData = await req.formData();
     const image = formData.get('image') as File | null;

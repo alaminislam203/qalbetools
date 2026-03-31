@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 const { igdl } = require('ab-downloader');
+import { validateApiToken } from '@/lib/api-auth';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, x-api-token',
 };
 
 // ── ১. CORS প্রিফ্লাইট ─────────────────────────────────────────────────────────
@@ -49,7 +50,13 @@ export async function GET(req: Request) {
 }
 
 // ── ৩. POST: Media Fetcher (Triple Engine) ────────────────────────────────────
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // ── Pro Authentication ──────────────────────────────────────────────
+  const auth = await validateApiToken(req);
+  if (!auth.success) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: 401, headers: CORS });
+  }
+
   try {
     const body = await req.json().catch(() => ({}));
     const { url } = body as { url?: string };

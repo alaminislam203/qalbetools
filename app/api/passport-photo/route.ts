@@ -1,18 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { validateApiToken } from '@/lib/api-auth';
 
 export const maxDuration = 60; // Vercel Timeout Fix
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, x-api-token',
 };
 
 // ── ১. CORS প্রিফ্লাইট ─────────────────────────────────────────────────────────
 export async function OPTIONS() { return new NextResponse(null, { status: 200, headers: CORS }); }
 
 // ── ২. POST: Remove Background (AI Engine) ────────────────────────────────────
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // ── Pro Authentication ──────────────────────────────────────────────
+  const auth = await validateApiToken(req);
+  if (!auth.success) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: 401, headers: CORS });
+  }
+
   try {
     const formData = await req.formData();
     const imageFile = formData.get('image') as File;
