@@ -22,7 +22,14 @@ export function useAuth() {
         const userRef = doc(db, 'users', user.uid);
         const snapshot = await getDoc(userRef);
         if (snapshot.exists()) {
-          setUserData(snapshot.data());
+          const data = snapshot.data();
+          // Ensure new fields exist for legacy users
+          if (data.tier === 'pro' && !data.apiToken) {
+              const newToken = crypto.randomUUID().replace(/-/g, '');
+              await setDoc(userRef, { apiToken: newToken }, { merge: true });
+              data.apiToken = newToken;
+          }
+          setUserData(data);
         } else {
           // Provision new user
           const initialData = {
@@ -32,7 +39,9 @@ export function useAuth() {
             tier: 'free',
             paymentStatus: 'none',
             createdAt: Date.now(),
-            dailyLimit: 20
+            dailyLimit: 20,
+            usage: {},
+            totalTokens: 0
           };
           await setDoc(userRef, initialData);
           setUserData(initialData);
@@ -68,5 +77,13 @@ export function useAuth() {
     await signOut(auth);
   };
 
-  return { user, userData, loading, login, logout };
+  const regenerateApiToken = async () => {
+    if (!user || !db || userData?.tier !== 'pro') return;
+    const newToken = crypto.randomUUID().replace(/-/g, '');
+    const userRef = doc(db, 'users', user.uid);
+    await setDoc(userRef, { apiToken: newToken }, { merge: true });
+    setUserData({ ...userData, apiToken: newToken });
+  };
+
+  return { user, userData, loading, login, logout, regenerateApiToken };
 }

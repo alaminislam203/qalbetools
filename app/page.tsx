@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import AuthButton from '@/components/AuthButton';
 import PaymentModal from '@/components/PaymentModal';
 import { useAuth } from '@/hooks/useAuth';
@@ -431,14 +432,34 @@ export default function Home() {
       <section id="api-docs" className="py-20 bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800 relative z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
-          <FadeUp className="text-center mb-16">
+          <FadeUp className="text-center mb-10">
             <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400 mb-3">
               Documentation
             </p>
             <h2 className="text-3xl md:text-5xl font-black mb-4">Developer API Guide</h2>
-            <p className="text-slate-600 dark:text-slate-400 text-lg max-w-xl mx-auto">
+            <p className="text-slate-600 dark:text-slate-400 text-lg max-w-xl mx-auto mb-8">
               Integrate our powerful utility APIs directly into your workflow with standard HTTP requests.
             </p>
+
+            {/* API Authentication Alert */}
+            <div className="max-w-2xl mx-auto p-6 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl text-left shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <h4 className="font-bold text-indigo-600 dark:text-indigo-400">API Authentication</h4>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    To use our APIs, you must include your secret token in the request headers. Get your token from the <Link href="/dashboard" className="text-indigo-600 dark:text-indigo-400 underline font-bold">Dashboard</Link>.
+                </p>
+                <div className="bg-black rounded-xl p-4 border border-slate-800">
+                    <code className="text-xs text-indigo-400 block font-mono">
+                        x-api-token: YOUR_SECRET_TOKEN
+                    </code>
+                </div>
+            </div>
           </FadeUp>
 
           {/* Tab Navigation */}
@@ -702,56 +723,44 @@ const { data } = await response.json();
           {/* ── YouTube Tab ── */}
           {activeTab === 'youtube' && (
             <div className="tab-panel">
-              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl">
-                <div className="flex flex-wrap items-center gap-3 mb-8">
-                  <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-500 dark:from-red-400 dark:to-orange-400">
-                    5. YouTube Video Downloader API
-                  </h3>
-                  <span className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-red-200 dark:border-red-800">
-                    High Stability
-                  </span>
+              <div className="bg-slate-50 dark:bg-black rounded-[2rem] p-8 md:p-12 border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden">
+                {/* Shutdown Overlay */}
+                <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center text-center p-6">
+                    <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                        <svg className="w-10 h-10 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-3xl font-black text-red-600 dark:text-red-400 mb-2 uppercase tracking-tighter">Temporarily Shut Down</h3>
+                    <p className="text-slate-800 dark:text-slate-200 font-bold max-w-sm">ইউটিউব ডাউনলোডার সাময়িক বন্ধ। অনুগ্রহ করে আমাদের ফেসবুক বা টিকটক ডাউনলোডার ব্যবহার করুন।</p>
+                    <div className="mt-8 flex gap-4">
+                        <button onClick={() => setActiveTab('facebook')} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-600/20 hover:scale-105 transition-transform">Use Facebook API</button>
+                        <button onClick={() => setActiveTab('tiktok')} className="px-6 py-3 bg-slate-900 dark:bg-white dark:text-black text-white font-bold rounded-xl shadow-lg transition-transform hover:scale-105">Use TikTok API</button>
+                    </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-                  <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
-                  <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-                    /api/youtube-downloader
-                  </code>
-                </div>
+                <div className="opacity-20 grayscale pointer-events-none">
+                    <div className="flex flex-wrap items-center gap-3 mb-8">
+                    <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-500 dark:from-red-400 dark:to-orange-400">
+                        5. YouTube Video Downloader API
+                    </h3>
+                    <span className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-red-200 dark:border-red-800">
+                        High Stability
+                    </span>
+                    </div>
 
-                <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-base mb-6">
-                  Experience lightning-fast <strong className="text-slate-800 dark:text-white">YouTube & Shorts</strong> downloads. Our engine uses a 3-tier fallback system (AB, VKR, and BK9) to ensure 99.9% uptime for both Video (MP4) and Audio (MP3).
-                </p>
-
-                <CodeBlock title="request-body.json" code={`{\n  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"\n}`} />
-
-                <div className="mt-8">
-                  <h4 className="font-bold text-lg mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">
-                    Universal Proxy Downloader
-                  </h4>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-                    <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">GET</span>
-                    <code className="text-sm font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 break-all">
-                      /api/youtube-downloader?proxyUrl=URL&amp;filename=NAME&amp;ext=mp4
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
+                    <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-4 py-2 rounded-xl font-mono font-bold text-sm tracking-widest shadow-sm">POST</span>
+                    <code className="text-base font-mono text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+                        /api/youtube-downloader
                     </code>
-                  </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                    Fetch YouTube streams directly through our proxy to bypass geographical restrictions and CORS issues.
-                  </p>
-                </div>
+                    </div>
 
-                <div className="mt-10">
-                  <CodeBlock
-                    title="youtube-fetch.js"
-                    code={`const response = await fetch('/api/youtube-downloader', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ url: 'YOUTUBE_URL' })
-});
+                    <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-base mb-6">
+                    Experience lightning-fast <strong className="text-slate-800 dark:text-white">YouTube & Shorts</strong> downloads. Our engine uses a 3-tier fallback system (AB, VKR, and BK9) to ensure 99.9% uptime for both Video (MP4) and Audio (MP3).
+                    </p>
 
-const { data } = await response.json();
-// data contains: title, thumbnail, and unique formats array`}
-                  />
+                    <CodeBlock title="request-body.json" code={`{\n  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"\n}`} />
                 </div>
               </div>
             </div>
