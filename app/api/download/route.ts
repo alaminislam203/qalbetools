@@ -3,7 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const videoUrl = searchParams.get('url');
-  const filename = searchParams.get('filename') || 'downloaded_file';
+  const ext = searchParams.get('ext') || 'mp4';
+  let filename = searchParams.get('filename') || `media_download_${Date.now()}`;
+
+  // Ensure filename has an extension
+  if (!filename.includes('.')) {
+    filename += `.${ext}`;
+  }
 
   if (!videoUrl) {
     return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
