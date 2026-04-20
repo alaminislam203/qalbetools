@@ -21,9 +21,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Normalize Instagram response (it returns an array of media objects)
+    // Normalize Instagram response
     const normalizedData = data.map((item: any) => {
-      const isVideo = item.url && (item.url.includes('.mp4') || item.url.includes('fbcdn.net/v/'));
+      const urlString = (item.url || '').toLowerCase();
+      
+      // Improved Video Detection Logic
+      const isVideo = 
+        item.type === 'video' || // Library metadata
+        urlString.includes('.mp4') || 
+        urlString.includes('fbcdn.net/v/') || 
+        urlString.includes('_n.mp4') ||
+        urlString.includes('video_dashinit') ||
+        url.toLowerCase().includes('/reels/') || // Current URL context
+        url.toLowerCase().includes('/tv/');
+
       return {
         thumbnail: item.thumbnail || '',
         url: item.url || '',
