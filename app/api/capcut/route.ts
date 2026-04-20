@@ -11,12 +11,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'CapCut URL is required' }, { status: 400 });
     }
 
-    console.log('>>> [API/capcut] Request for URL:', url);
     const data = await capcut(url);
-    console.log('>>> [API/capcut] Raw Response:', JSON.stringify(data, null, 2));
 
-    // Normalize for UniversalDownloader
-    // CapCut responses can vary, checking multiple possible structures
     if (!data || (!data.video_url && !data.originalVideoUrl && !data.url && !data.video && !data.result)) {
       return NextResponse.json(
         { error: 'Could not fetch CapCut content. The link might be invalid or restricted.' },
@@ -34,18 +30,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const title = videoInfo.title || 'CapCut Video';
+    const thumbnail = videoInfo.coverUrl || videoInfo.cover_url || videoInfo.thumbnail || videoInfo.cover || '';
+
     const normalizedData = [
       {
-        title: videoInfo.title || 'CapCut Video',
-        thumbnail: videoInfo.coverUrl || videoInfo.cover_url || videoInfo.thumbnail || videoInfo.cover || '',
+        title: title,
+        thumbnail: thumbnail,
         url: finalUrl,
-        type: 'video'
+        type: 'video',
+        quality: 'High Quality',
+        format: 'mp4'
       }
     ];
 
     return NextResponse.json({
       success: true,
       data: normalizedData,
+      title: title
     });
 
   } catch (error: any) {

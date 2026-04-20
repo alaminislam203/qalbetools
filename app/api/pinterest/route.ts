@@ -20,16 +20,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine if it's a search result or a single pin
-    // The library returns result as an array of objects
     const items = Array.isArray(data.result) ? data.result : [data.result];
+    const title = 'Pinterest Media';
     
-    const normalizedData = items.map((item: any, index: number) => ({
-      title: `Pinterest Media ${index + 1}`,
-      thumbnail: item.image || item.thumbnail || '',
-      url: item.image || item.url || '',
-      type: (item.image && item.image.includes('.mp4')) || (item.url && item.url.includes('.mp4')) ? 'video' : 'image'
-    })).filter((item: any) => item.url);
+    const normalizedData = items.map((item: any, index: number) => {
+      const mediaUrl = item.image || item.url || '';
+      const isVideo = mediaUrl.toLowerCase().includes('.mp4');
+      
+      return {
+        title: `${title} ${index + 1}`,
+        thumbnail: item.image || item.thumbnail || '',
+        url: mediaUrl,
+        type: isVideo ? 'video' : 'image',
+        quality: isVideo ? 'High Quality' : 'Original',
+        format: isVideo ? 'mp4' : 'jpg'
+      };
+    }).filter((item: any) => item.url);
 
     if (normalizedData.length === 0) {
       return NextResponse.json(
@@ -41,6 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: normalizedData,
+      title: title
     });
 
   } catch (error: any) {

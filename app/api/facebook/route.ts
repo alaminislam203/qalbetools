@@ -4,70 +4,61 @@ import { NextRequest, NextResponse } from 'next/server';
 const { fbdown } = require('ab-downloader');
 
 export async function POST(req: NextRequest) {
-  console.log('>>> [API/facebook] Request received');
   try {
     const body = await req.json();
     const { url } = body;
-    console.log('>>> [API/facebook] URL:', url);
 
     if (!url) {
       return NextResponse.json({ error: 'Facebook URL is required' }, { status: 400 });
     }
 
-    console.log('>>> [API/facebook] Calling fbdown...');
     const rawData = await fbdown(url);
-    console.log('>>> [API/facebook] Raw Response:', JSON.stringify(rawData, null, 2));
-
-    // The library can return various field names for videos
-    // We log the raw data for debugging and then try to extract links flexibly
     const videoData = rawData.result || rawData;
 
-    // Flexible extraction
+    // Flexible extraction of links
     const hdLink = videoData.HD || videoData.hd || videoData.video_hd || '';
     const sdLink = videoData.Normal_video || videoData.sd || videoData.video_sd || videoData.url || '';
-    const thumbnail = videoData.thumbnail || videoData.thumb || videoData.image || videoData.cover || videoData.preview || '';
+    const thumbnail = videoData.thumbnail || videoData.thumb || videoData.image || videoData.cover || '';
+    const title = videoData.title || videoData.caption || 'Facebook Video';
 
     if (!videoData || (!hdLink && !sdLink)) {
       return NextResponse.json(
-        { error: 'Could not find any video links for this URL. Ensure the video is public.' },
+        { error: 'Could not find any video links. Ensure the video is public.' },
         { status: 500 }
       );
     }
 
-    // Prepare a standardized links array for the PHP template
-    const links = [];
+    // Normalize to unified array format
+    const normalizedData = [];
     if (hdLink) {
-      links.push({
+      normalizedData.push({
+        title: title,
+        thumbnail: thumbnail,
         url: hdLink,
-        quality: 'HD',
-        format: 'mp4',
         type: 'video',
-        size: 'High Quality'
+        quality: 'High Quality (HD)',
+        format: 'mp4'
       });
     }
     if (sdLink) {
-      links.push({
+      normalizedData.push({
+        title: title,
+        thumbnail: thumbnail,
         url: sdLink,
-        quality: 'SD',
-        format: 'mp4',
         type: 'video',
-        size: 'Normal Quality'
+        quality: 'Normal Quality (SD)',
+        format: 'mp4'
       });
     }
 
     return NextResponse.json({
       success: true,
-      data: {
-        title: videoData.title || videoData.caption || 'Facebook Video',
-        thumbnail: thumbnail,
-        hd: hdLink,
-        sd: sdLink,
-        links: links
-      }
+      data: normalizedData,
+      title: title
     });
 
   } catch (error: any) {
-    console.error('>>> [API/facebook] Exception:', error);
+    console.error('Facebook Downloader Error:', error);
     return NextResponse.json(
       { error: error.message || 'An internal server error occurred' },
       { status: 500 }

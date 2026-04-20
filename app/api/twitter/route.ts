@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: normalizedData,
+      title: data.title || 'Twitter Video'
     });
 
   } catch (error: any) {

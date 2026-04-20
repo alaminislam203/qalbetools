@@ -11,9 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });
     }
 
-    console.log('>>> [API/youtube] Request received for URL:', url);
     const data = await youtube(url);
-    console.log('>>> [API/youtube] Raw Response:', JSON.stringify(data, null, 2));
 
     if (!data || (data.status === false)) {
       return NextResponse.json(
@@ -22,42 +20,62 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Normalize for UniversalDownloader
+    const title = data.title || 'YouTube Video';
+    const thumbnail = data.thumbnail || '';
     const normalizedData = [];
 
-    // Check for mp4 (Video)
+    // Extract MP4 (Video)
     if (data.mp4) {
       const videoUrl = typeof data.mp4 === 'string' ? data.mp4 : (data.mp4.url || data.mp4.link || '');
       if (videoUrl) {
         normalizedData.push({
-          title: (data.title || 'YouTube Video') + ' (MP4 Video)',
-          thumbnail: data.thumbnail || '',
+          title: title,
+          thumbnail: thumbnail,
           url: videoUrl,
-          type: 'video'
+          type: 'video',
+          quality: 'Video (MP4)',
+          format: 'mp4'
         });
       }
     }
 
-    // Check for mp3 (Audio)
+    // Extract MP3 (Audio)
     if (data.mp3) {
       const audioUrl = typeof data.mp3 === 'string' ? data.mp3 : (data.mp3.url || data.mp3.link || '');
       if (audioUrl) {
         normalizedData.push({
-          title: (data.title || 'YouTube Audio') + ' (MP3 Audio)',
-          thumbnail: data.thumbnail || '',
+          title: title,
+          thumbnail: thumbnail,
           url: audioUrl,
-          type: 'audio'
+          type: 'audio',
+          quality: 'Audio (MP3)',
+          format: 'mp3'
         });
       }
     }
 
-    // Fallback if no specific mp3/mp4 but a generic url exists
+    // Check for any other formats if the library provides them
+    if (data.formats && Array.isArray(data.formats)) {
+        data.formats.forEach((fmt: any) => {
+            normalizedData.push({
+                title: title,
+                thumbnail: thumbnail,
+                url: fmt.url || fmt.link || '',
+                type: (fmt.ext === 'mp3' || fmt.format === 'mp3') ? 'audio' : 'video',
+                quality: fmt.quality || fmt.resolution || 'Standard',
+                format: fmt.ext || fmt.format || 'mp4'
+            });
+        });
+    }
+
     if (normalizedData.length === 0 && data.url) {
       normalizedData.push({
-        title: (data.title || 'YouTube Content'),
-        thumbnail: data.thumbnail || '',
+        title: title,
+        thumbnail: thumbnail,
         url: data.url,
-        type: 'media'
+        type: 'media',
+        quality: 'Original',
+        format: 'mp4'
       });
     }
 
@@ -71,7 +89,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: normalizedData,
-      title: data.title || 'YouTube Video'
+      title: title
     });
 
   } catch (error: any) {
