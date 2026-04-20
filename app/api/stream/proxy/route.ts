@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const targetUrl = searchParams.get('url');
@@ -10,66 +12,72 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const response = await fetch(targetUrl, {
+    const upstreamResponse = await fetch(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Connection': 'keep-alive',
       },
+      next: { revalidate: 0 } // Ensure no caching in Vercel/Next.js
     });
 
-    if (!response.ok) {
-       Logger.error(`HLS Proxy: Failed to fetch source ${targetUrl} (Status: ${response.status})`);
-      throw new Error(`Failed to fetch stream: ${response.statusText}`);
+    if (!upstreamResponse.ok) {
+       Logger.error(`HLS Proxy: Upstream failure ${targetUrl} (Status: ${upstreamResponse.status})`);
+      throw new Error(`Upstream responded with ${upstreamResponse.status}`);
     }
 
-    const contentType = response.headers.get('content-type') || '';
-    const isBinary = 
-        targetUrl.toLowerCase().endsWith('.ts') || 
-        targetUrl.toLowerCase().endsWith('.m4s') ||
-        targetUrl.toLowerCase().endsWith('.mp4') ||
+    const contentType = upstreamResponse.headers.get('content-type') || '';
+    const urlLower = targetUrl.toLowerCase();
+    
+    // Improved detection for binary segments
+    const isBinaryValue = 
+        urlLower.includes('.ts') || 
+        urlLower.includes('.m4s') ||
+        urlLower.includes('.mp4') ||
+        urlLower.includes('.aac') ||
         contentType.includes('video/') || 
+        contentType.includes('audio/') ||
         contentType.includes('application/octet-stream');
 
-    // If it's a binary segment file, pipe it directly
-    if (isBinary) {
-        const segmentHeaders = new Headers();
-        segmentHeaders.set('Access-Control-Allow-Origin', '*');
-        segmentHeaders.set('Content-Type', contentType || 'video/MP2T');
-        
-        return new NextResponse(response.body, {
-            headers: segmentHeaders,
+    if (isBinaryValue) {
+        // Direct stream pipe for Vercel efficiency
+        return new Response(upstreamResponse.body, {
+            headers: {
+                'Content-Type': contentType || 'video/MP2T',
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
         });
     }
 
-    // Otherwise, treat as an M3U8 playlist
-    let m3u8Content = await response.text();
-
-    // Use our proxy API for EVERYTHING in the playlist
+    // Playlist processing
+    const m3u8Content = await upstreamResponse.text();
     const baseUrl = targetUrl.substring(0, targetUrl.lastIndexOf('/') + 1);
     const selfUrl = req.nextUrl.origin + req.nextUrl.pathname;
     
-    const lines = m3u8Content.split('\n');
-    const processedLines = lines.map(line => {
-      const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith('#')) {
-        let absoluteUrl = '';
-        if (trimmed.startsWith('http')) {
-            absoluteUrl = trimmed;
-        } else if (trimmed.startsWith('/')) {
-            const urlObj = new URL(targetUrl);
-            absoluteUrl = `${urlObj.protocol}//${urlObj.host}${trimmed}`;
+    // Faster string processing for large playlists
+    const lines = m3u8Content.split(/\r?\n/);
+    let output = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line && !line.startsWith('#')) {
+            let absoluteUrl = '';
+            if (line.startsWith('http')) {
+                absoluteUrl = line;
+            } else if (line.startsWith('/')) {
+                const urlObj = new URL(targetUrl);
+                absoluteUrl = `${urlObj.protocol}//${urlObj.host}${line}`;
+            } else {
+                absoluteUrl = baseUrl + line;
+            }
+            output += `${selfUrl}?url=${encodeURIComponent(absoluteUrl)}\n`;
         } else {
-            absoluteUrl = baseUrl + trimmed;
+            output += lines[i] + '\n';
         }
-        
-        // Return URL that points BACK to this proxy
-        return `${selfUrl}?url=${encodeURIComponent(absoluteUrl)}`;
-      }
-      return line;
-    });
+    }
 
-    const finalM3U8 = processedLines.join('\n');
-
-    return new NextResponse(finalM3U8, {
+    return new Response(output, {
       headers: {
         'Content-Type': 'application/vnd.apple.mpegurl',
         'Access-Control-Allow-Origin': '*',
@@ -78,7 +86,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    Logger.error(`HLS Proxy Error: ${error.message} for URL: ${targetUrl}`);
+    Logger.error(`HLS Proxy Error: ${error.message} for ${targetUrl}`);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

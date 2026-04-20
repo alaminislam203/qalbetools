@@ -29,8 +29,15 @@ export default function HlsPlayer({ src, autoPlay = true }: HlsPlayerProps) {
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 90
+        lowLatencyMode: false, // Turn off low latency for better buffer stability
+        backBufferLength: 60,
+        maxBufferLength: 60,
+        maxMaxBufferLength: 90,
+        fragLoadingMaxRetry: 10,
+        levelLoadingMaxRetry: 10,
+        manifestLoadingMaxRetry: 10,
+        startLevel: -1, // Let HLS.js decide but be ready to recover
+        abrEwmaDefaultEstimate: 500000, // 500kbps initial estimate
       });
 
       hls.loadSource(proxiedSrc);
@@ -40,7 +47,10 @@ export default function HlsPlayer({ src, autoPlay = true }: HlsPlayerProps) {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLive(true);
         if (autoPlay) {
-          video.play().catch(e => console.log("Autoplay blocked:", e));
+          video.play().catch(e => {
+            console.log("Autoplay blocked:", e);
+            setError("Autoplay blocked. Please click play manually.");
+          });
         }
       });
 
@@ -48,18 +58,20 @@ export default function HlsPlayer({ src, autoPlay = true }: HlsPlayerProps) {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              setError("Network error. Retrying...");
+              setError(`Network error: ${data.details}. Retrying...`);
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              setError("Media error. Recovering...");
+              setError(`Media decode error: ${data.details}. Attempting recovery...`);
               hls.recoverMediaError();
               break;
             default:
-              setError("Fatal playback error.");
+              setError(`Fatal error: ${data.details}. Please try switching to ULTRA mode if available on your VPS.`);
               hls.destroy();
               break;
           }
+        } else {
+            console.warn("Non-fatal HLS error:", data.details);
         }
       });
     } 
