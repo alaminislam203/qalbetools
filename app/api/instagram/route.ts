@@ -24,12 +24,12 @@ export async function POST(req: NextRequest) {
     // Normalize Instagram response
     const normalizedData = data.map((item: any) => {
       const urlString = (item.url || '').toLowerCase();
-      
+
       // Improved Video Detection Logic
-      const isVideo = 
+      const isVideo =
         item.type === 'video' || // Library metadata
-        urlString.includes('.mp4') || 
-        urlString.includes('fbcdn.net/v/') || 
+        urlString.includes('.mp4') ||
+        urlString.includes('fbcdn.net/v/') ||
         urlString.includes('_n.mp4') ||
         urlString.includes('video_dashinit') ||
         url.toLowerCase().includes('/reels/') || // Current URL context

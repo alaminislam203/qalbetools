@@ -10,14 +10,21 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const response = await fetch(videoUrl);
+    // Adding browser-like headers to bypass bot protection
+    const response = await fetch(videoUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.instagram.com/',
+        'Accept': '*/*'
+      }
+    });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch video: ${response.statusText}`);
+      throw new Error(`Source responded with status ${response.status}: ${response.statusText}`);
     }
 
     // Get the content headers from the original source
-    const contentType = response.headers.get('content-type') || 'video/mp4';
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
     const contentLength = response.headers.get('content-length');
 
     const headers = new Headers();
@@ -36,7 +43,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('Download Proxy Error:', error);
     return NextResponse.json(
-      { error: 'Failed to download video. It might be blocked by the source.' },
+      { error: `Failed to download: ${error.message}. Instagram might be blocking this request.` },
       { status: 500 }
     );
   }
