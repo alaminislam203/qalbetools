@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { spawn } from 'child_process';
+import { Logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   // Create a ReadableStream from the FFmpeg output
   const stream = new ReadableStream({
     start(controller) {
-      console.log('>>> [UltraEngine] Starting fMP4 stream for:', targetUrl);
+      Logger.info(`UltraEngine: Starting fMP4 stream for: ${targetUrl.substring(0, 50)}...`);
       let isFinished = false;
       
       const ffmpeg = spawn('ffmpeg', [
@@ -50,11 +51,11 @@ export async function GET(req: NextRequest) {
       });
 
       ffmpeg.stderr.on('data', (data) => {
-        console.error(`>>> [UltraEngine Error] ${data}`);
+        Logger.error(`UltraEngine Error: ${data}`);
       });
 
       ffmpeg.on('close', (code) => {
-        console.log(`>>> [UltraEngine] Process closed with code ${code}`);
+        Logger.info(`UltraEngine: Process closed with code ${code}`);
         if (!isFinished) {
             isFinished = true;
             try { controller.close(); } catch (e) {}
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
 
       // Cleanup on disconnect
       req.signal.addEventListener('abort', () => {
-        console.log('>>> [UltraEngine] Client disconnected. Killing process...');
+        Logger.warn('UltraEngine: Client disconnected. Killing process...');
         isFinished = true;
         ffmpeg.kill('SIGKILL'); // Use SIGKILL for immediate termination on Windows
       });

@@ -13,8 +13,11 @@ export default function LogChecker() {
       const data = await res.json();
       if (data.status) {
         setHealth(data.health);
-        addLog(`System Pulse: FFmpeg is ${data.health.systems.ffmpeg.status.toUpperCase()}`);
-        addLog(`AI Core: Gemini Engine is ${data.health.systems.gemini.status.toUpperCase()}`);
+        
+        // Merge API logs with any local critical errors
+        if (data.health.logs) {
+            setLogs(data.health.logs);
+        }
       }
     } catch (e) {
       addLog("CRITICAL: Failed to connect to health monitor.");
@@ -25,7 +28,7 @@ export default function LogChecker() {
 
   const addLog = (msg: string) => {
     const time = new Date().toLocaleTimeString();
-    setLogs(prev => [`[${time}] ${msg}`, ...prev].slice(0, 50));
+    setLogs(prev => [`[${time}] [LOCAL] ${msg}`, ...prev].slice(0, 50));
   };
 
   useEffect(() => {
@@ -88,12 +91,25 @@ export default function LogChecker() {
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest ml-2">Live Diagnostic Feed</span>
           </div>
           <div className="flex-grow overflow-y-auto space-y-2 text-[11px] scrollbar-hide">
-            {logs.length > 0 ? logs.map((log, i) => (
-              <div key={i} className="flex gap-4 group">
-                <span className="text-white/20 whitespace-nowrap">{i === 0 ? '>>>' : '   '}</span>
-                <span className={`${log.includes('CRITICAL') ? 'text-red-400' : 'text-white/60'} group-hover:text-white transition-colors`}>{log}</span>
-              </div>
-            )) : (
+            {logs.length > 0 ? logs.map((log, i) => {
+              const isError = log.includes('[ERROR]') || log.includes('CRITICAL');
+              const isWarn = log.includes('[WARN]');
+              const isInfo = log.includes('[INFO]');
+              const isLocal = log.includes('[LOCAL]');
+              
+              let textColor = 'text-white/60';
+              if (isError) textColor = 'text-red-400';
+              else if (isWarn) textColor = 'text-yellow-400';
+              else if (isInfo) textColor = 'text-blue-400';
+              else if (isLocal) textColor = 'text-purple-400';
+
+              return (
+                <div key={i} className="flex gap-4 group">
+                  <span className="text-white/20 whitespace-nowrap">{i === 0 ? '>>>' : '   '}</span>
+                  <span className={`${textColor} group-hover:text-white transition-colors`}>{log}</span>
+                </div>
+              );
+            }) : (
               <p className="text-white/10 italic">Waiting for telemetry data...</p>
             )}
           </div>

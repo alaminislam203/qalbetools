@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { NextResponse } from "next/server";
+import { Logger } from "@/lib/logger";
 
 const execPromise = promisify(exec);
 
@@ -18,7 +19,8 @@ export async function GET() {
         { name: "Ultra Stream Engine", endpoint: "/api/stream/ultra", status: "online" },
         { name: "Resume AI Engine", endpoint: "/api/resume-ai", status: "online" },
         { name: "YouTube Engine", endpoint: "/api/youtube", status: "online" }
-      ]
+      ],
+      logs: await Logger.getRecentLogs(50)
     };
 
     // 1. Check FFmpeg Presence

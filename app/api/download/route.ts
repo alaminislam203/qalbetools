@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -12,8 +13,11 @@ export async function GET(req: NextRequest) {
   }
 
   if (!videoUrl) {
+    Logger.warn('Download attempt without URL');
     return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
   }
+
+  Logger.info(`Initiating proxy download: ${filename} from ${videoUrl.substring(0, 50)}...`);
 
   try {
     // Adding browser-like headers to bypass bot protection
@@ -47,7 +51,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Download Proxy Error:', error);
+    Logger.error(`Download Proxy Error: ${error.message} for URL: ${videoUrl}`);
     return NextResponse.json(
       { error: `Failed to download: ${error.message}. Instagram might be blocking this request.` },
       { status: 500 }
