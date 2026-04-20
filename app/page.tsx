@@ -230,6 +230,21 @@ export default function Home() {
                   </div>
                 </div>
               </Link>
+
+              {/* Log Checker - New Tool */}
+              <Link href="/tools/admin" className="bg-white/5 p-8 rounded-3xl border border-white/5 flex flex-col justify-between group hover:border-primary/20 transition-all">
+                <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary/10 transition-colors">
+                  <span className="material-symbols-outlined text-white group-hover:text-primary transition-colors">terminal</span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-2">Log Checker</h3>
+                  <p className="text-sm text-white/40 mb-6">System Health & API Diagnostics</p>
+                  <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                    Open Console
+                    <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">insights</span>
+                  </div>
+                </div>
+              </Link>
             </div>
           </div>
         </section>
