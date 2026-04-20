@@ -91,10 +91,21 @@ export default function HlsPlayer({ src, autoPlay = true }: HlsPlayerProps) {
       />
       
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md text-white p-6 text-center">
-          <div className="flex flex-col items-center gap-4">
-            <span className="material-symbols-outlined text-4xl text-error">error</span>
-            <p className="font-medium">{error}</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-xl text-white p-6 text-center">
+          <div className="flex flex-col items-center gap-6 max-w-sm">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center border border-red-500/30">
+                <span className="material-symbols-outlined text-3xl text-red-500">error</span>
+            </div>
+            <div>
+                <h4 className="text-lg font-bold mb-2">Playback Stalled</h4>
+                <p className="text-sm text-white/60 leading-relaxed">{error}</p>
+            </div>
+            <button 
+                onClick={() => { setError(null); hlsRef.current?.startLoad(); }}
+                className="bg-white text-black px-8 py-2.5 rounded-full font-bold hover:bg-white/90 transition-all active:scale-95"
+            >
+                Try Reconnect
+            </button>
           </div>
         </div>
       )}

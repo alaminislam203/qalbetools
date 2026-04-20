@@ -113,6 +113,14 @@ export default function IPTVPage() {
                         </button>
                     </div>
                 </div>
+
+                <div className="bg-blue-500/10 border border-blue-500/20 p-6 rounded-2xl flex gap-4 items-start">
+                    <span className="material-symbols-outlined text-blue-400 mt-1">info</span>
+                    <div className="text-sm leading-relaxed">
+                        <p className="text-white/80 font-bold mb-1">Troubleshooting Tip</p>
+                        <p className="text-white/40">If you see a black screen in **HLS** mode, it might be due to your browser blocking mixed content. Try switching to **ULTRA** mode, which uses our server-side engine to bypass these restrictions and ensure playback on all devices.</p>
+                    </div>
+                </div>
             </div>
 
             <div className="space-y-6">

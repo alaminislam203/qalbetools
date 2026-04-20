@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -16,20 +17,30 @@ export async function GET(req: NextRequest) {
     });
 
     if (!response.ok) {
+       Logger.error(`HLS Proxy: Failed to fetch source ${targetUrl} (Status: ${response.status})`);
       throw new Error(`Failed to fetch stream: ${response.statusText}`);
     }
 
-    // If it's a segment (.ts) file, pipe it directly as binary
-    if (targetUrl.toLowerCase().endsWith('.ts')) {
+    const contentType = response.headers.get('content-type') || '';
+    const isBinary = 
+        targetUrl.toLowerCase().endsWith('.ts') || 
+        targetUrl.toLowerCase().endsWith('.m4s') ||
+        targetUrl.toLowerCase().endsWith('.mp4') ||
+        contentType.includes('video/') || 
+        contentType.includes('application/octet-stream');
+
+    // If it's a binary segment file, pipe it directly
+    if (isBinary) {
         const segmentHeaders = new Headers();
         segmentHeaders.set('Access-Control-Allow-Origin', '*');
-        segmentHeaders.set('Content-Type', 'video/MP2T');
+        segmentHeaders.set('Content-Type', contentType || 'video/MP2T');
         
         return new NextResponse(response.body, {
             headers: segmentHeaders,
         });
     }
 
+    // Otherwise, treat as an M3U8 playlist
     let m3u8Content = await response.text();
 
     // Use our proxy API for EVERYTHING in the playlist
@@ -67,7 +78,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('HLS Proxy Error:', error);
+    Logger.error(`HLS Proxy Error: ${error.message} for URL: ${targetUrl}`);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
