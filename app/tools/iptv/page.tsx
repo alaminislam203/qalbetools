@@ -4,12 +4,13 @@ import { useState } from 'react';
 import HlsPlayer from "@/components/HlsPlayer";
 import MpegTsPlayer from "@/components/MpegTsPlayer";
 import UltraPlayer from "@/components/UltraPlayer";
+import VideoJsPlayer from "@/components/VideoJsPlayer";
 import Link from "next/link";
 
 export default function IPTVPage() {
   const [url, setUrl] = useState('http://103.157.248.140:8000/play/a01p/index.m3u8');
   const [playingUrl, setPlayingUrl] = useState('');
-  const [engine, setEngine] = useState<'hls' | 'ffmpeg' | 'ultra'>('ultra');
+  const [engine, setEngine] = useState<'hls' | 'ffmpeg' | 'ultra' | 'vjs'>('vjs');
 
   const handlePlay = () => {
     if (!url) return;
@@ -49,6 +50,12 @@ export default function IPTVPage() {
                 HLS
             </button>
             <button 
+                onClick={() => setEngine('vjs')}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${engine === 'vjs' ? 'bg-primary text-black' : 'text-white/40 hover:text-white'}`}
+            >
+                Video.js
+            </button>
+            <button 
                 onClick={() => setEngine('ffmpeg')}
                 className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${engine === 'ffmpeg' ? 'bg-primary text-black' : 'text-white/40 hover:text-white'}`}
             >
@@ -77,7 +84,10 @@ export default function IPTVPage() {
         {/* Player Section */}
         <div className="mb-12">
             {playingUrl ? (
-                engine === 'ultra' ? <UltraPlayer src={playingUrl} /> : engine === 'hls' ? <HlsPlayer src={playingUrl} /> : <MpegTsPlayer src={playingUrl} />
+                engine === 'ultra' ? <UltraPlayer src={playingUrl} /> : 
+                engine === 'hls' ? <HlsPlayer src={playingUrl} /> : 
+                engine === 'vjs' ? <VideoJsPlayer src={playingUrl} /> :
+                <MpegTsPlayer src={playingUrl} />
             ) : (
                 <div className="aspect-video bg-white/5 rounded-3xl border border-white/10 flex flex-col items-center justify-center gap-6 group cursor-pointer hover:bg-white/[0.07] transition-all" onClick={handlePlay}>
                     <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_50px_rgba(var(--primary-rgb),0.3)]">
