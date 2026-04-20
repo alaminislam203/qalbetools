@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: normalizedData,
+      title: data.title || 'YouTube Video'
     });
 
   } catch (error: any) {
