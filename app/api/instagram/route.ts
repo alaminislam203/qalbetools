@@ -22,16 +22,22 @@ export async function POST(req: NextRequest) {
     }
 
     // Normalize Instagram response (it returns an array of media objects)
-    const normalizedData = data.map((item: any) => ({
-      thumbnail: item.thumbnail || '',
-      url: item.url || '',
-      type: item.url && item.url.includes('.mp4') ? 'video' : 'image'
-    }));
+    const normalizedData = data.map((item: any) => {
+      const isVideo = item.url && (item.url.includes('.mp4') || item.url.includes('fbcdn.net/v/'));
+      return {
+        thumbnail: item.thumbnail || '',
+        url: item.url || '',
+        type: isVideo ? 'video' : 'image',
+        quality: isVideo ? 'HD' : 'Original',
+        format: isVideo ? 'mp4' : 'jpg',
+        size: isVideo ? 'Estimated 2-5 MB' : 'Estimated 500 KB'
+      };
+    });
 
     return NextResponse.json({
       success: true,
       data: normalizedData,
-      title: 'Instagram Post'
+      title: 'Instagram Content'
     });
 
   } catch (error: any) {

@@ -34,6 +34,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Prepare a standardized links array for the PHP template
+    const links = [];
+    if (hdLink) {
+      links.push({
+        url: hdLink,
+        quality: 'HD',
+        format: 'mp4',
+        type: 'video',
+        size: 'High Quality'
+      });
+    }
+    if (sdLink) {
+      links.push({
+        url: sdLink,
+        quality: 'SD',
+        format: 'mp4',
+        type: 'video',
+        size: 'Normal Quality'
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -41,6 +62,7 @@ export async function POST(req: NextRequest) {
         thumbnail: thumbnail,
         hd: hdLink,
         sd: sdLink,
+        links: links
       }
     });
 
