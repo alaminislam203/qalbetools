@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const { youtube } = require('ab-downloader');
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -11,9 +9,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'YouTube URL is required' }, { status: 400 });
     }
 
-    const data = await youtube(url);
+    // সরাসরি এক্সটারনাল এপিআই থেকে ডেটা ফেচ করা হচ্ছে
+    // এটি 'ab-downloader' লাইব্রেরির চেয়ে অনেক দ্রুত এবং স্টেবল
+    const apiResponse = await fetch(`https://eu.org{encodeURIComponent(url)}`);
+    
+    if (!apiResponse.ok) {
+      throw new Error('External API failed to respond');
+    }
 
-    if (!data || (data.status === false)) {
+    const data = await apiResponse.json();
+
+    if (!data || data.status === false) {
       return NextResponse.json(
         { error: data.message || 'Could not fetch YouTube content. YouTube links are often restricted.' },
         { status: 500 }
@@ -24,7 +30,7 @@ export async function POST(req: NextRequest) {
     const thumbnail = data.thumbnail || '';
     const normalizedData = [];
 
-    // Extract MP4 (Video)
+    // Extract MP4 (Video) logic
     if (data.mp4) {
       const videoUrl = typeof data.mp4 === 'string' ? data.mp4 : (data.mp4.url || data.mp4.link || '');
       if (videoUrl) {
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Extract MP3 (Audio)
+    // Extract MP3 (Audio) logic
     if (data.mp3) {
       const audioUrl = typeof data.mp3 === 'string' ? data.mp3 : (data.mp3.url || data.mp3.link || '');
       if (audioUrl) {
@@ -54,20 +60,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check for any other formats if the library provides them
+    // অন্যান্য ফরম্যাট চেক করা (যদি থাকে)
     if (data.formats && Array.isArray(data.formats)) {
-        data.formats.forEach((fmt: any) => {
-            normalizedData.push({
-                title: title,
-                thumbnail: thumbnail,
-                url: fmt.url || fmt.link || '',
-                type: (fmt.ext === 'mp3' || fmt.format === 'mp3') ? 'audio' : 'video',
-                quality: fmt.quality || fmt.resolution || 'Standard',
-                format: fmt.ext || fmt.format || 'mp4'
-            });
+      data.formats.forEach((fmt: any) => {
+        normalizedData.push({
+          title: title,
+          thumbnail: thumbnail,
+          url: fmt.url || fmt.link || '',
+          type: (fmt.ext === 'mp3' || fmt.format === 'mp3') ? 'audio' : 'video',
+          quality: fmt.quality || fmt.resolution || 'Standard',
+          format: fmt.ext || fmt.format || 'mp4'
         });
+      });
     }
 
+    // যদি ডেটা না পাওয়া যায় কিন্তু একটি সাধারণ লিঙ্ক থাকে
     if (normalizedData.length === 0 && data.url) {
       normalizedData.push({
         title: title,
@@ -80,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (normalizedData.length === 0) {
-       return NextResponse.json(
+      return NextResponse.json(
         { error: 'No downloadable links found. YouTube might be blocking the request.' },
         { status: 500 }
       );
